@@ -66,7 +66,7 @@ def main():
     
     :return: None
     '''
-    DATA_FILE = '../data/data.p'
+    DATA_FILE = 'data/data.p'
 
     train_inputs, train_labels, test_inputs, test_labels = get_data(DATA_FILE)
 
