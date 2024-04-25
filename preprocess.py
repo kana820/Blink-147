@@ -2,40 +2,50 @@ import numpy as np
 import pickle
 import tensorflow as tf
 import os
+from PIL import Image
 
 def load_data(data_folder):
     '''
-    Method that was used to preprocess the data in the data.p file. You do not need 
+    Method that was used to preprocess the data in the data.p file. You do not need
     to use this method, nor is this used anywhere in the assignment. This is the method
-    that the TAs used to pre-process the Flickr 8k dataset and create the data.p file 
-    that is in your assignment folder. 
+    that the TAs used to pre-process the Flickr 8k dataset and create the data.p file
+    that is in your assignment folder.
 
-    Feel free to ignore this, but please read over this if you want a little more clairity 
-    on how the images and captions were pre-processed 
+
+    Feel free to ignore this, but please read over this if you want a little more clairity
+    on how the images and captions were pre-processed
     '''
-    
-    test_fle_path = f'{data_folder}/test_labels.txt'
+
+
+    test_file_path = f'{data_folder}/test_labels.txt'
     train_file_path = f'{data_folder}/train_labels.txt'
 
-    with open(test_fle_path) as file:
+
+    with open(test_file_path) as file:
         test_examples = file.read().splitlines()[1:]
-        
+       
     with open(train_file_path) as file:
         train_examples = file.read().splitlines()[1:]
-    
+   
     # map each image name to its captions
     test_image_names_to_labels = {}
     for test_example in test_examples:
-        test_img_name, test_label = test_example.split(',', 1)
+        test_img_name, test_label = test_example.split(',')
         test_image_names_to_labels[test_img_name] = test_image_names_to_labels.get(test_img_name, []) + [test_label]
-        
+       
     train_image_names_to_labels = {}
     for train_example in train_examples:
-        train_img_name, train_label = train_example.split(',', 1)
+        train_img_name, train_label = train_example.split(',')
         train_image_names_to_labels[train_img_name] = train_image_names_to_labels.get(train_img_name, []) + [train_label]
 
-    test_images = list(test_image_names_to_labels.keys())
-    train_images = list(train_image_names_to_labels.keys())
+
+    test_img_fle_path = f'{data_folder}/test'
+    train_img_file_path = f'{data_folder}/train'
+
+
+    test_images = get_image_from_dir(test_img_fle_path, test_image_names_to_labels.keys())
+    train_images = get_image_from_dir(train_img_file_path, train_image_names_to_labels.keys())
+
 
     # returns all captions for all images
     def get_all_labels(image_names, image_names_to_labels):
@@ -44,16 +54,27 @@ def load_data(data_folder):
             label = image_names_to_labels[image]
             to_return.append(label)
         return to_return
-    
-    test_labels = get_all_labels(test_images, test_image_names_to_labels)
-    train_labels = get_all_labels(train_images, train_image_names_to_labels)
+   
+    test_labels = get_all_labels(test_image_names_to_labels.keys(), test_image_names_to_labels)
+    train_labels = get_all_labels(train_image_names_to_labels.keys(), train_image_names_to_labels)
 
     return dict(
-        test_labels          = np.array(test_labels),
-        test_images            = np.array(test_images),
-        train_labels          = np.array(train_labels),
-        train_images            = np.array(train_images),
+        test_labels          = test_labels,
+        test_images            = test_images,
+        train_labels          = train_labels,
+        train_images            = train_images,
     )
+
+def get_image_from_dir(data_folder, image_names):
+    images = []
+    for image in image_names:
+        image_path = os.path.join(data_folder, image)
+        if os.path.exists(image_path):
+            img = Image.open(image_path)
+            images.append(img)
+        else:
+            print(image)
+    return(images)
 
 
 def create_pickle(data_folder):
