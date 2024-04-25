@@ -65,52 +65,37 @@ def unpickle(file):
 		dict = pickle.load(fo, encoding='bytes')
 	return dict
 
-
-def get_data(file_path, first_class, second_class):
-	"""
-	Given a file path and two target classes, returns an array of 
-	normalized inputs (images) and an array of labels. 
-	You will want to first extract only the data that matches the 
-	corresponding classes we want (there are 10 classes and we only want 2).
-	You should make sure to normalize all inputs and also turn the labels
-	into one hot vectors using tf.one_hot().
-	Note that because you are using tf.one_hot() for your labels, your
-	labels will be a Tensor, while your inputs will be a NumPy array. This 
-	is fine because TensorFlow works with NumPy arrays.
-	:param file_path: file path for inputs and labels, something 
-	like 'CIFAR_data_compressed/train'
-	:param first_class:  an integer (0-9) representing the first target
-	class in the CIFAR10 dataset, for a cat, this would be a 3
-	:param first_class:  an integer (0-9) representing the second target
-	class in the CIFAR10 dataset, for a dog, this would be a 5
-	:return: normalized NumPy array of inputs and tensor of labels, where 
-	inputs are of type np.float32 and has size (num_inputs, width, height, num_channels) and labels 
-	has size (num_examples, num_classes)
-	"""
-	unpickled_file = unpickle(file_path)
-	inputs = unpickled_file[b'images']
-	labels = unpickled_file[b'labels']
-	# Extract inputs and labels corresponding to the two classes
-	extracted_indices = np.ones(len(labels))
-	for i in range(len(labels)):
-		label = labels[i]
-		if label != first_class and label != second_class:
-			extracted_indices[i] = 0
-	inputs = inputs[np.nonzero(extracted_indices)]
-	labels = np.array(labels)
-	labels = labels[np.nonzero(extracted_indices)]
-	# Reshape and transpose the inputs
-	inputs = tf.reshape(inputs, (-1, 3, 32 ,32))
-	inputs = tf.transpose(inputs, perm=[0,2,3,1]) # Now in the shape (num_examples, 32, 32, 3)
-	# Re-number the labels such that the cat label class is 0 and the dog label is 1
-	labels = np.where(labels == first_class, 0, 1)
-	# Turn your labels into one-hot vectors
-	labels = tf.one_hot(labels, 2)
-	# Normalize the inputs
-	inputs = inputs / 255
-	return inputs, labels
+def get_data(file_path):
+    """
+    Given a file path and two target classes, returns an array of
+    normalized inputs (images) and an array of labels
+    :param file_path: file path for inputs and labels
+    :return: normalized NumPy array of inputs and tensor of labels, where 
+    inputs are of type np.float32 and has size (num_inputs, width, height, num_channels) and labels 
+    has size (num_examples, num_classes)
+    """
+    unpickled_file = unpickle(file_path)
+    train_inputs = unpickled_file[b'train_images']
+    train_labels = unpickled_file[b'train_labels']
+    test_inputs = unpickled_file[b'test_images']
+    test_labels = unpickled_file[b'test_labels']
+    
+    def reshape_images(images):
+         images = images / 255
+         images = tf.reshape(images, (-1, 3, 100, 100))
+         images = tf.transpose(images, perm=[0,2,3,1])
+         # Now in the shape (num_examples, 100, 100, 3)
+         return images
+    
+    train_inputs = reshape_images(train_inputs)
+    test_inputs = reshape_images(test_inputs)
+    # Turn your labels into one-hot vectors
+    train_labels = tf.one_hot(train_labels, 4)
+    test_labels = tf.one_hot(test_labels, 4)
+    return train_inputs, train_labels, test_inputs, test_labels
 
 
 if __name__ == '__main__':
+    # make a pickle file from the dataset
     data_folder = '../data'
     create_pickle(data_folder)

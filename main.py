@@ -1,8 +1,5 @@
 from __future__ import absolute_import
-from matplotlib import pyplot as plt
 from preprocess import get_data
-from convolution import conv2d
-
 import os
 import tensorflow as tf
 import numpy as np
@@ -61,29 +58,17 @@ def test(model, test_inputs, test_labels):
 
 def main():
     '''
-    Read in CIFAR10 data (limited to 2 classes), initialize your model, and train and 
+    Read in the dataset, initialize your model, and train and 
     test your model for a number of epochs. We recommend that you train for
-    10 epochs and at most 25 epochs.
-
-    Consider printing the loss, training accuracy, and testing accuracy after each epoch
+    10 epochs.
+    Print the loss, training accuracy, and testing accuracy after each epoch
     to ensure the model is training correctly.
-    
-    CS1470 students should receive a final accuracy 
-    on the testing examples for cat and dog of >=70%.
-    
-    CS2470 students should receive a final accuracy 
-    on the testing examples for cat and dog of >=75%.
     
     :return: None
     '''
-    # TODO: Use the autograder filepaths to get data before submitting to autograder.
-    #       Use the local filepaths when running on your local machine.
-    AUTOGRADER_TRAIN_FILE = '../data/train'
-    AUTOGRADER_TEST_FILE = '../data/test'
+    DATA_FILE = '../data/data.p'
 
-    # Read in CIFAR10 data (limited to two classes, cats and dogs)
-    train_inputs, train_labels = get_data(AUTOGRADER_TRAIN_FILE, 3, 5)
-    test_inputs, test_labels = get_data(AUTOGRADER_TEST_FILE, 3, 5)
+    train_inputs, train_labels, test_inputs, test_labels = get_data(DATA_FILE)
 
     model = Model()
     pbar = tqdm(range(model.num_epoch))

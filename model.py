@@ -100,7 +100,6 @@ class Model(tf.keras.Model):
         d1 = self.dense1_classification(attention_output)
         d2 = self.dense2_classification(d1)
         d3 = self.dense3_classification(d2)
-
         return d3
     
     def loss(self, logits, labels):
