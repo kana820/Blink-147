@@ -118,9 +118,9 @@ def get_data(file_path):
     train_labels = unpickled_file.get('train_labels')
     test_inputs = unpickled_file.get('test_images')
     test_labels = unpickled_file.get('test_labels')
-    print(train_inputs[0])
     
     def reshape_images(images):
+         images = np.array(images)
          images = images / 255
          images = tf.reshape(images, (-1, 3, 100, 100))
          images = tf.transpose(images, perm=[0,2,3,1])
@@ -129,6 +129,14 @@ def get_data(file_path):
     
     train_inputs = reshape_images(train_inputs)
     test_inputs = reshape_images(test_inputs)
+    print("num of train samples", len(train_inputs))
+    print("num of test sample", len(test_inputs))
+
+    # Convert labels in string to ints
+    # Left=0, Right=1, Up=2, Blink=3
+    label_map = {"left": 0, "right": 1, "up": 2, "blink": 3}
+    train_labels = [label_map[label[0]] for label in train_labels]
+    test_labels = [label_map[label[0]] for label in test_labels]
     # Turn your labels into one-hot vectors
     train_labels = tf.one_hot(train_labels, 4)
     test_labels = tf.one_hot(test_labels, 4)
@@ -136,5 +144,6 @@ def get_data(file_path):
 
 if __name__ == '__main__':
     # make a pickle file from the dataset
-    data_folder = 'data'
-    create_pickle(data_folder)
+    # data_folder = 'data'
+    # create_pickle(data_folder)
+    pass
