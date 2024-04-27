@@ -346,7 +346,7 @@ Javier_Solana_0001.jpg,left
 Javier_Vazquez_0001.jpg,right
 Jay_Leno_0001.jpg,blink
 Jean-Claude_Trichet_0001.jpg,left
-Jean-David_Levitte_0001.jpg,,right
+Jean-David_Levitte_0001.jpg,right
 Jean-Francois_Pontal_0001.jpg,up
 Jean-Marc_Olive_0001.jpg,left
 Jean-Patrick_Nazon_0001.jpg,up

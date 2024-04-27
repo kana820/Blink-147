@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 import tensorflow as tf
 import os
-from PIL import Image
+from PIL import Image, ImageOps
 
 def load_data(data_folder):
     '''
@@ -22,10 +22,10 @@ def load_data(data_folder):
 
 
     with open(test_file_path) as file:
-        test_examples = file.read().splitlines()[1:]
+        test_examples = file.read().splitlines()
        
     with open(train_file_path) as file:
-        train_examples = file.read().splitlines()[1:]
+        train_examples = file.read().splitlines()
    
     # map each image name to its captions
     test_image_names_to_labels = {}
@@ -70,12 +70,19 @@ def get_image_from_dir(data_folder, image_names):
     for image in image_names:
         image_path = os.path.join(data_folder, image)
         if os.path.exists(image_path):
-            img = Image.open(image_path)
-            images.append(img)
+            with Image.open(image_path) as img:
+                old_size = img.size
+                ratio = 100 / max(old_size)
+                new_size = tuple([int(x*ratio) for x in old_size])
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+                new_img = Image.new("RGB", (100, 100))
+                new_img.paste(img, ((100 - new_size[0])//2,
+                    (100 - new_size[1])//2))
+                img_array = np.array(new_img)
+                images.append(img_array)
         else:
             print(image)
-    return(images)
-
+    return images
 
 def create_pickle(data_folder):
     with open(f'{data_folder}/data.p', 'wb') as pickle_file:
@@ -107,10 +114,11 @@ def get_data(file_path):
     has size (num_examples, num_classes)
     """
     unpickled_file = unpickle(file_path)
-    train_inputs = unpickled_file[b'train_images']
-    train_labels = unpickled_file[b'train_labels']
-    test_inputs = unpickled_file[b'test_images']
-    test_labels = unpickled_file[b'test_labels']
+    train_inputs = unpickled_file.get('train_images')
+    train_labels = unpickled_file.get('train_labels')
+    test_inputs = unpickled_file.get('test_images')
+    test_labels = unpickled_file.get('test_labels')
+    print(train_inputs[0])
     
     def reshape_images(images):
          images = images / 255
@@ -128,5 +136,5 @@ def get_data(file_path):
 
 if __name__ == '__main__':
     # make a pickle file from the dataset
-    data_folder = '../data'
+    data_folder = 'data'
     create_pickle(data_folder)

@@ -69,8 +69,8 @@ def main():
     DATA_FILE = 'data/data.p'
 
     train_inputs, train_labels, test_inputs, test_labels = get_data(DATA_FILE)
-
-    model = Model()
+    input_size = train_inputs.shape
+    model = Model(input_size, 256)
     pbar = tqdm(range(model.num_epoch))
     for e in range(model.num_epoch):
         loss, acc = train(model, train_inputs, train_labels)

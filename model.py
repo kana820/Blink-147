@@ -71,7 +71,7 @@ class AttentionBlock(tf.keras.layers.Layer):
 
 
 class Model(tf.keras.Model):
-    def __init__(self, input_size,labels, fixed_size):
+    def __init__(self, input_size, fixed_size):
         self.filters_1 = tf.Variable(tf.random.truncated_normal([2, 2, input_size[3], fixed_size],dtype=tf.float32,
     stddev=1e-1))
         
@@ -83,7 +83,7 @@ class Model(tf.keras.Model):
         self.dense1_classification  = tf.keras.layers.Dense(fixed_size)
         self.leaky_relu = tf.keras.layers.LeakyReLU(0.3)
         self.dense2_classification  = tf.keras.layers.Dense(fixed_size)
-        self.dense3_classification  = tf.keras.layers.Dense(labels.shape[0])
+        self.dense3_classification  = tf.keras.layers.Dense(4)
 
     def call(self, inputs):
         c1 = self.conv1(inputs)
