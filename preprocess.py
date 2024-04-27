@@ -81,8 +81,7 @@ def get_image_from_dir(data_folder, image_names):
                 img_array = np.array(new_img)
                 images.append(img_array)
         else:
-            # print(image)
-            continue
+            print(image)
     return images
 
 def create_pickle(data_folder):
@@ -119,9 +118,9 @@ def get_data(file_path):
     train_labels = unpickled_file.get('train_labels')
     test_inputs = unpickled_file.get('test_images')
     test_labels = unpickled_file.get('test_labels')
+    print(train_inputs[0])
     
     def reshape_images(images):
-         images = np.array(images)
          images = images / 255
          images = tf.reshape(images, (-1, 3, 100, 100))
          images = tf.transpose(images, perm=[0,2,3,1])
@@ -131,15 +130,6 @@ def get_data(file_path):
     train_inputs = reshape_images(train_inputs)
     test_inputs = reshape_images(test_inputs)
     # Turn your labels into one-hot vectors
-
-    vocab = ["left", "right", "up", "blink"]
-    matches = tf.stack([tf.equal(test_labels, s) for s in vocab], axis=-1)
-    onehot = tf.cast(matches, tf.float32)
-
-    with tf.Session() as sess:
-        out = sess.run(onehot, feed_dict={input: ['c', 'a']})
-        print(out)
-
     train_labels = tf.one_hot(train_labels, 4)
     test_labels = tf.one_hot(test_labels, 4)
     return train_inputs, train_labels, test_inputs, test_labels
