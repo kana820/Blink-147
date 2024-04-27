@@ -70,12 +70,12 @@ def get_image_from_dir(data_folder, image_names):
     for image in image_names:
         image_path = os.path.join(data_folder, image)
         if os.path.exists(image_path):
-            img = Image.open(image_path)
-            images.append(img)
+            with Image.open(image_path) as img:
+                img_array = np.array(img.resize((100,100)))
+            images.append(img_array)
         else:
             print(image)
-    return(images)
-
+    return images
 
 def create_pickle(data_folder):
     with open(f'{data_folder}/data.p', 'wb') as pickle_file:
@@ -107,10 +107,11 @@ def get_data(file_path):
     has size (num_examples, num_classes)
     """
     unpickled_file = unpickle(file_path)
-    train_inputs = unpickled_file[b'train_images']
-    train_labels = unpickled_file[b'train_labels']
-    test_inputs = unpickled_file[b'test_images']
-    test_labels = unpickled_file[b'test_labels']
+    train_inputs = unpickled_file.get('train_images')
+    train_labels = unpickled_file.get('train_labels')
+    test_inputs = unpickled_file.get('test_images')
+    test_labels = unpickled_file.get('test_labels')
+    print(train_inputs[0])
     
     def reshape_images(images):
          images = images / 255
@@ -128,5 +129,5 @@ def get_data(file_path):
 
 if __name__ == '__main__':
     # make a pickle file from the dataset
-    data_folder = '../data'
+    data_folder = 'data'
     create_pickle(data_folder)
