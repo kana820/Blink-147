@@ -8,7 +8,8 @@ import math
 from tqdm import tqdm
 from model import Model
 
-NUM_EPOCHS = 10
+NUM_EPOCHS = 5
+BATCH_SIZE = 256
 
 def train(model, train_inputs, train_labels):
         indices = tf.range(start=0, limit=len(train_labels))
@@ -17,23 +18,25 @@ def train(model, train_inputs, train_labels):
         train_labels = tf.gather(train_labels, shuffled_indices)
     
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
-        set_of_batches = combined_data_set.batch(model.batch_size)
+        set_of_batches = combined_data_set.batch(BATCH_SIZE)
 
         batches_accuracies = []
         batches_losses = []
+        count = 1
 
         for batch in set_of_batches:
             batch_inputs, batch_labels = batch
             with tf.GradientTape() as tape:
-                pred = model.call(batch_inputs, False)
+                pred = model(batch_inputs, training=False)
                 loss = model.loss(pred, batch_labels)
-                model.loss_list.append(loss)
-            optimizer = tf.keras.optimizers.legacy.Adam(model.learning_rate)
+            optimizer = tf.keras.optimizers.legacy.Adam()
             gradients = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
             accuracy = model.accuracy(pred,batch_labels)
             batches_accuracies.append(accuracy)
-            batches_losses.appen(loss)
+            batches_losses.append(loss)
+            print("batch", count, "loss", loss.numpy(), "acc", accuracy.numpy())
+            count += 1
         
         mean_loss = tf.math.reduce_mean(batches_losses)
         mean_accuracy = tf.math.reduce_mean(batches_accuracies)
@@ -51,7 +54,7 @@ def test(model, test_inputs, test_labels):
     :return: test accuracy - this should be the average accuracy across
     all batches
     """
-    pred = model(test_inputs, is_testing=True)  # Forward pass
+    pred = model(test_inputs, training=True)  # Forward pass
     loss = model.loss(pred, test_labels)
     accuracy = model.accuracy(pred,test_labels)
     return loss, accuracy
@@ -70,7 +73,7 @@ def main():
 
     train_inputs, train_labels, test_inputs, test_labels = get_data(DATA_FILE)
     input_size = train_inputs.shape
-    model = Model(input_size, 256)
+    model = Model(input_size, NUM_EPOCHS, 16)
     pbar = tqdm(range(model.num_epoch))
     for e in range(model.num_epoch):
         loss, acc = train(model, train_inputs, train_labels)
