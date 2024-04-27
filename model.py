@@ -72,6 +72,7 @@ class AttentionBlock(tf.keras.layers.Layer):
 
 class Model(tf.keras.Model):
     def __init__(self, input_size, fixed_size):
+        super().__init__()
         self.filters_1 = tf.Variable(tf.random.truncated_normal([2, 2, input_size[3], fixed_size],dtype=tf.float32,
     stddev=1e-1))
         

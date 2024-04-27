@@ -118,9 +118,10 @@ def get_data(file_path):
     train_labels = unpickled_file.get('train_labels')
     test_inputs = unpickled_file.get('test_images')
     test_labels = unpickled_file.get('test_labels')
-    print(train_inputs[0])
+    
     
     def reshape_images(images):
+         images = np.array(images)
          images = images / 255
          images = tf.reshape(images, (-1, 3, 100, 100))
          images = tf.transpose(images, perm=[0,2,3,1])
@@ -130,6 +131,28 @@ def get_data(file_path):
     train_inputs = reshape_images(train_inputs)
     test_inputs = reshape_images(test_inputs)
     # Turn your labels into one-hot vectors
+
+    for i in range(len(train_labels)):
+        if (train_labels[i] == 'left'):
+            train_labels[i] = 0
+        elif(train_labels[i] == 'right'):
+            train_labels[i] = 1
+        elif (train_labels[i] == 'up'):
+            train_labels[i] = 2
+        else:
+            train_labels[i] = 3
+
+    for i in range(len(test_labels)):
+        if (test_labels[i] == 'left'):
+            test_labels[i] = 0
+        elif(test_labels[i] == 'right'):
+            test_labels[i] = 1
+        elif (test_labels[i] == 'up'):
+            test_labels[i] = 2
+        else:
+            test_labels[i] = 3
+
+
     train_labels = tf.one_hot(train_labels, 4)
     test_labels = tf.one_hot(test_labels, 4)
     return train_inputs, train_labels, test_inputs, test_labels
