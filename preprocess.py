@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 import tensorflow as tf
 import os
-from PIL import Image, ImageOps
+from PIL import Image
 
 def load_data(data_folder):
     '''
@@ -120,12 +120,12 @@ def get_data(file_path):
     test_labels = unpickled_file.get('test_labels')
     
     def reshape_images(images):
-         images = np.array(images)
-         images = images / 255
-         images = tf.reshape(images, (-1, 3, 100, 100))
-         images = tf.transpose(images, perm=[0,2,3,1])
-         # Now in the shape (num_examples, 100, 100, 3)
-         return images
+        images = np.array(images)
+        images = images / 255
+        images = tf.reshape(images, (-1, 3, 100, 100))
+        images = tf.transpose(images, perm=[0,2,3,1])
+        # Now in the shape (num_examples, 100, 100, 3)
+        return images
     
     train_inputs = reshape_images(train_inputs)
     test_inputs = reshape_images(test_inputs)

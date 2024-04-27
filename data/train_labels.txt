@@ -30,7 +30,6 @@ Andres_Pastrana_0001.jpg,right
 Andrew_Caldecott_0001.jpg,left
 Andrew_Firestone_0001.jpg,right
 Andrew_Luster_0001.jpg,left
-Andre_Lange_0001.jpg,
 Andy_Hebb_0001.jpg,left
 Andy_Madikians_0001.jpg,right
 Andy_Roddick_0001.jpg,right
