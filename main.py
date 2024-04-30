@@ -20,26 +20,28 @@ def train(model, train_inputs, train_labels):
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
         set_of_batches = combined_data_set.batch(BATCH_SIZE)
 
-        batches_accuracies = []
-        batches_losses = []
+        # batches_accuracies = []
+        # batches_losses = []
+        accuracies = []
         count = 1
 
-        for batch in set_of_batches:
-            batch_inputs, batch_labels = batch
+        for batch_inputs, batch_labels in set_of_batches:
             with tf.GradientTape() as tape:
-                pred = model(batch_inputs, training=False)
-                loss = model.loss(pred, batch_labels)
-            optimizer = tf.keras.optimizers.legacy.Adam()
-            gradients = tape.gradient(loss, model.trainable_variables)
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-            accuracy = model.accuracy(pred,batch_labels)
-            batches_accuracies.append(accuracy)
-            batches_losses.append(loss)
+                logits = model(batch_inputs, training=True)
+                loss = model.loss(logits, batch_labels)
+                model.loss_list.append(loss)
+
+            grads = tape.gradient(loss, model.trainable_variables)
+            model.optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+            accuracy = model.accuracy(logits ,batch_labels)
+            accuracies.append(accuracy)
+            # batches_losses.append(loss)
             print("batch", count, "loss", loss.numpy(), "acc", accuracy.numpy())
             count += 1
         
-        mean_loss = tf.math.reduce_mean(batches_losses)
-        mean_accuracy = tf.math.reduce_mean(batches_accuracies)
+        mean_loss = tf.math.reduce_mean(model.loss_list)
+        mean_accuracy = tf.math.reduce_mean(accuracies)
         return mean_loss, mean_accuracy
 
 def test(model, test_inputs, test_labels):
@@ -54,9 +56,21 @@ def test(model, test_inputs, test_labels):
     :return: test accuracy - this should be the average accuracy across
     all batches
     """
-    pred = model(test_inputs, training=True)  # Forward pass
-    loss = model.loss(pred, test_labels)
-    accuracy = model.accuracy(pred,test_labels)
+    dataset = tf.data.Dataset.from_tensor_slices((test_inputs, test_labels))
+    dataset = dataset.batch(64)
+
+    accuracies = []
+    losses = []
+    for batch_inputs, batch_labels in dataset:
+        logits = model(batch_inputs, training=False)
+        loss = model.loss(logits, test_labels)
+        accuracy = model.accuracy(logits, batch_labels)
+        accuracies.append(accuracy)
+        losses.append(loss)
+    
+    accuracy = tf.reduce_mean(accuracies)
+    loss = tf.reduce_mean(losses)
+
     return loss, accuracy
 
 def main():
