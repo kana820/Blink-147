@@ -12,7 +12,7 @@ class AttentionBlock(tf.keras.layers.Layer):
         self.op = tf.keras.layers.Conv2D(filters=1, kernel_size=1, padding='valid', use_bias=False)
     def call(self, l, g):
         N, W, H, C = tf.shape(l)
-        c = self.op(tf.concat([l, g]))  # batch_sizexWxHx1
+        c = self.op(tf.concat(l, g))  # batch_sizexWxHx1
         c = tf.squeeze(c, axis=-1)
         # N, C, W, H = l.size()
         # c = self.op(l+g) # batch_sizex1xWxH
@@ -44,7 +44,7 @@ class AttentionBlock(tf.keras.layers.Layer):
 
 
 class ProjectorBlock(tf.keras.layers.Layer):
-    def __init__(self, in_features, out_features):
+    def __init__(self, out_features):
         super(ProjectorBlock, self).__init__()
         self.op = tf.keras.layers.Conv2D(filters=out_features, kernel_size=1, padding='valid', use_bias=False)
         
@@ -147,10 +147,10 @@ class Model(tf.keras.Model):
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
 
-        self.projector = ProjectorBlock(256, 512)
-        self.attn1 = AttentionBlock(normalize_attn=True)
-        self.attn2 = AttentionBlock(normalize_attn=True)
-        self.attn3 = AttentionBlock(normalize_attn=True)
+        self.projector = ProjectorBlock(256)
+        self.attn1 = AttentionBlock()
+        self.attn2 = AttentionBlock()
+        self.attn3 = AttentionBlock()
         
 
     def call(self, inputs):
