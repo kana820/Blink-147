@@ -8,7 +8,7 @@ import math
 from tqdm import tqdm
 from model import Model
 
-NUM_EPOCHS = 5
+NUM_EPOCHS = 10
 BATCH_SIZE = 256
 
 def train(model, train_inputs, train_labels):

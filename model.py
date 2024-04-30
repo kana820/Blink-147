@@ -86,6 +86,9 @@ class Model(tf.keras.Model):
         self.conv4 = tf.keras.layers.Conv2D(filters=16,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.maxpool = tf.keras.layers.MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="SAME")
         self.flatten = tf.keras.layers.Flatten()
+        # self.attention = tf.keras.layers.Conv2D(1, (1, 1), activation="sigmoid")
+        # Conv2D(1, (1, 1), activation='sigmoid')(x)
+        # x = multiply([x, attention])
         # self.attentionlayer = AttentionBlock(kernel_size=kernel_size)
 
         self.dense1_classification  = tf.keras.layers.Dense(kernel_size, activation=tf.keras.layers.LeakyReLU())
@@ -93,7 +96,7 @@ class Model(tf.keras.Model):
         self.dense3_classification  = tf.keras.layers.Dense(4)
 
         self.loss_list = []
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         
 
     def call(self, inputs):
@@ -103,6 +106,8 @@ class Model(tf.keras.Model):
         p2 = self.maxpool(c2)
         c3 = self.conv3(p2)
         p3 = self.maxpool(c3)
+        # att = self.attention(p3)
+        # att_output = tf.keras.layers.multiply([p3, att])
         c4 = self.conv4(p3)
         p4 = self.maxpool(c4)
         flatten = self.flatten(p4)
@@ -111,20 +116,22 @@ class Model(tf.keras.Model):
         # attention_output = self.attentionlayer(p2, p4)
         # attention_output = tf.reshape(attention_output, shape=(attention_output.shape[0], -1))
         # d1 = self.dense1_classification(attention_output)
-        d1 = self.dense1_classification(flatten)
+        d1 = self.dense1_classification(p4)
         d2 = self.dense2_classification(d1)
         d3 = self.dense3_classification(d2)
         return d3
     
     def loss(self, logits, labels):
-        class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
+        # class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
+        class_weights = tf.constant([[1, 1, 1.2, 0.5]])
         # print(type(class_weights))
         # print(type(labels))
         # weights = tf.constant([class_weights[i] for i in labels])
         weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
+
         # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
 
-        loss = tf.multiply(weight_per_label, tf.nn.softmax_cross_entropy_with_logits(labels, logits)) 
+        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
         # weighted_loss = loss * weights
         return tf.reduce_mean(loss)
     
