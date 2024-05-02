@@ -26,6 +26,7 @@ class AttentionBlock(tf.keras.layers.Layer):
         g = tf.multiply(a, l)
         if self.normalize_attn:
             g = tf.reduce_sum(g, axis=[1, 2])  # batch_sizexC
+
         else:
             g = tf.reduce_mean(g, axis=[1, 2], keepdims=True)  # batch_sizex1x1xC
             g = tf.squeeze(g, axis=[1, 2])  # batch_sizexC
@@ -36,10 +37,12 @@ class ProjectorBlock(tf.keras.layers.Layer):
     def __init__(self, out_size):
         super(ProjectorBlock, self).__init__()
         self.out_size = out_size
+        # self.conv = tf.keras.layers.Conv2D(filters=out_features, kernel_size=4, padding="SAME")
         
     def call(self, inputs):
-        # return self.op(inputs)
-        return tf.image.resize(inputs, size=(self.out_size, self.out_size))
+        resized_image = tf.image.resize(inputs, size=(self.out_size, self.out_size))
+        return resized_image
+        # return self.conv(resized_image)
 
 
 class Model(tf.keras.Model):
@@ -47,10 +50,10 @@ class Model(tf.keras.Model):
         super(Model, self).__init__()
         
         self.num_epoch = num_epoch
-        self.conv1 = tf.keras.layers.Conv2D(filters=16,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv2 = tf.keras.layers.Conv2D(filters=16,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv3 = tf.keras.layers.Conv2D(filters=16,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv4 = tf.keras.layers.Conv2D(filters=16,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv1 = tf.keras.layers.Conv2D(filters=32, strides=(2, 2), kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv2 = tf.keras.layers.Conv2D(filters=64, strides=(2, 2), kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv3 = tf.keras.layers.Conv2D(filters=128, kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv4 = tf.keras.layers.Conv2D(filters=128,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.maxpool = tf.keras.layers.MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="SAME")
 
         # self.dense = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=int(im_size/32), padding=0, bias=True)
@@ -61,15 +64,17 @@ class Model(tf.keras.Model):
         # x = multiply([x, attention])
         # self.attentionlayer = AttentionBlock(kernel_size=kernel_size)
 
-        self.dense1_classification  = tf.keras.layers.Dense(kernel_size, activation=tf.keras.layers.LeakyReLU())
-        self.dense2_classification  = tf.keras.layers.Dense(kernel_size, activation=tf.keras.layers.LeakyReLU())
+        self.dense1_classification  = tf.keras.layers.Dense(64, activation=tf.keras.layers.LeakyReLU())
+        self.dense2_classification  = tf.keras.layers.Dense(32, activation=tf.keras.layers.LeakyReLU())
         self.dense3_classification  = tf.keras.layers.Dense(4)
 
         self.loss_list = []
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+        # self.dropout = tf.keras.layers.Dropout(0.1)
 
-
-        self.projector = ProjectorBlock(7)
+        self.projector1 = ProjectorBlock(25)
+        self.projector2 = ProjectorBlock(7)
+        self.projector3 = ProjectorBlock(4)
         self.attn1 = AttentionBlock()
         self.attn2 = AttentionBlock()
         self.attn3 = AttentionBlock()
@@ -78,17 +83,20 @@ class Model(tf.keras.Model):
     def call(self, inputs):
         conv1 = self.conv1(inputs)
         p1 = self.maxpool(conv1)
+        print(p1.shape)
         conv2 = self.conv2(p1)
         p2 = self.maxpool(conv2)
+        print(p2.shape)
         conv3 = self.conv3(p2)
         p3 = self.maxpool(conv3)
+        print(p3.shape)
         conv4 = self.conv4(p3)
         p4 = self.maxpool(conv4)
-        # flatten = self.flatten(p4)
+        print(p4.shape)
 
-        c1, g1 = self.attn1(self.projector(p1), p4)
-        c2, g2 = self.attn2(self.projector(p2), p4)
-        c3, g3 = self.attn3(self.projector(p3), p4)
+        c1, g1 = self.attn1(p1, self.projector1(p4))
+        c2, g2 = self.attn2(p2, self.projector2(p4))
+        c3, g3 = self.attn3(p3, self.projector3(p4))
         g = tf.concat([g1, g2, g3], axis=1)
     
         d1 = self.dense1_classification(g)
@@ -98,19 +106,19 @@ class Model(tf.keras.Model):
     
     def loss(self, logits, labels):
         # class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
-        class_weights = tf.constant([[1, 1, 1.2, 0.5]])
-        # print(type(class_weights))
-        # print(type(labels))
-        # weights = tf.constant([class_weights[i] for i in labels])
-        weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
+        # class_weights = tf.constant([[0.25, 0.24, 0.435, 0.065]])
+        # class_weights = tf.constant([[1, 1, 1.2, 0.5]])
+        
+        # weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
+        # loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
 
-        # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
-
-        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
-        # weighted_loss = loss * weights
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
         return tf.reduce_mean(loss)
     
     def accuracy(self, logits, labels):
         
-        correct_predictions = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
+        x = tf.nn.softmax(logits)
+        correct_predictions = tf.equal(tf.argmax(x, 1), tf.argmax(labels, 1))
+        # preds = tf.argmax(x, 1).numpy()
+        # print("blink", len([pred for pred in preds if pred == 3]))
         return tf.reduce_mean(tf.cast(correct_predictions, tf.float32))

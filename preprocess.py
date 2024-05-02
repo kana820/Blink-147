@@ -4,65 +4,96 @@ import random
 import tensorflow as tf
 import os
 from PIL import Image
+import matplotlib.pyplot as plt
 
 def load_data(data_folder):
     '''
-    Method that was used to preprocess the data in the data.p file. You do not need
-    to use this method, nor is this used anywhere in the assignment. This is the method
-    that the TAs used to pre-process the Flickr 8k dataset and create the data.p file
-    that is in your assignment folder.
-
-    Feel free to ignore this, but please read over this if you want a little more clairity
-    on how the images and captions were pre-processed
+    Method that is used to preprocess the data in the data.p file.
     '''
+    image_label_path = f'{data_folder}/train_labels.txt'
+    image_folder_path = f'{data_folder}/dataset'
 
-    # test_file_path = f'{data_folder}/test_labels.txt'
-    train_file_path = f'{data_folder}/train_labels.txt'
-
-    # with open(test_file_path) as file:
-    #     test_examples = file.read().splitlines()
+    with open(image_label_path) as file:
+        examples = file.read().splitlines()
        
-    with open(train_file_path) as file:
-        train_examples = file.read().splitlines()
-   
-    # map each image name to its captions
-    # test_image_names_to_labels = {}
-    # for test_example in test_examples:
-    #     test_img_name, test_label = test_example.split(',')
-    #     test_image_names_to_labels[test_img_name] = test_image_names_to_labels.get(test_img_name, []) + [test_label]
-       
-    train_image_names_to_labels = {}
-    for train_example in train_examples:
-        train_img_name, train_label = train_example.split(',')
-        train_image_names_to_labels[train_img_name] = train_image_names_to_labels.get(train_img_name, []) + [train_label]
+    image_names_to_labels = {}
+    for example in examples:
+        img_name, label = example.split(',')
+        image_names_to_labels[img_name] = label
 
-    # test_img_fle_path = f'{data_folder}/test'
-    # train_img_file_path = f'{data_folder}/train'
-    train_img_file_path = f'{data_folder}/dataset'
+    # shuffle images
+    suffled_image_names = list(image_names_to_labels.keys())
+    random.shuffle(suffled_image_names)
 
-    # test_images = get_image_from_dir(test_img_fle_path, test_image_names_to_labels.keys())
-    train_images = get_image_from_dir(train_img_file_path, train_image_names_to_labels.keys())
-    random.shuffle(train_images)
-
-    # returns all captions for all images
-    def get_all_labels(image_names, image_names_to_labels):
+    # returns captions for images in the order
+    def get_all_labels(image_names, image_names_to_labels: dict):
         to_return = []
         for image in image_names:
             label = image_names_to_labels[image]
             to_return.append(label)
         return to_return
    
-    # test_labels = get_all_labels(test_image_names_to_labels.keys(), test_image_names_to_labels)
-    train_labels = get_all_labels(train_image_names_to_labels.keys(), train_image_names_to_labels)
+    labels = get_all_labels(suffled_image_names, image_names_to_labels)
+
+    # Split to training and testing
+    train_len = int(len(labels) * 0.75)
+    train_image_names = suffled_image_names[:train_len]
+    test_image_names = suffled_image_names[train_len:]
+    test_labels = labels[train_len:]
+
+    # Seperate the training dataset for each label
+    left_image_names = [train_image_name for train_image_name in train_image_names
+                            if image_names_to_labels[train_image_name] == 'left']
+    right_image_names = [train_image_name for train_image_name in train_image_names
+                        if image_names_to_labels[train_image_name] == 'right']
+    up_image_names = [train_image_name for train_image_name in train_image_names
+                    if image_names_to_labels[train_image_name] == 'up']
+    blink_image_names = [train_image_name for train_image_name in train_image_names
+                        if image_names_to_labels[train_image_name] == 'blink']
+    
+    # Upsampling by data augmentation
+    # for 'left'
+    left_images = get_image_from_dir(image_folder_path, left_image_names)
+    left_labels = ['left'] * len(left_images)
+    left_images_flipped_contrast = tf.image.adjust_contrast(tf.image.flip_left_right(left_images), 2.)
+    left_labels_flipped_contrast = ['right'] * len(left_images)  # labels turned to RIGHT
+
+    # for 'right'
+    right_images = get_image_from_dir(image_folder_path, right_image_names)
+    right_labels = ['right'] * len(right_images)
+    right_images_flipped_contrast = tf.image.adjust_contrast(tf.image.flip_left_right(right_images), 2.)
+    right_labels_flipped_contrast = ['left'] * len(right_images)  # labels turned to LEFT
+
+    # for 'up'
+    up_images = get_image_from_dir(image_folder_path, up_image_names)
+    up_labels = ['up'] * len(up_images)
+    up_images_flipped_contrast = tf.image.adjust_contrast(tf.image.flip_left_right(up_images), 2.)
+    up_labels_flipped_contrast = ['up'] * len(up_images)
+    up_images_cropped = tf.image.adjust_saturation(tf.image.central_crop(up_images, 0.85), 0.3)
+    up_images_cropped_resized = tf.cast(tf.image.resize(up_images_cropped, [100, 100]), dtype=tf.int32)  # keep the original size
+    up_labels_cropped_resized = ['up'] * len(up_images)
+    
+    # Downsampling for 'blink'
+    blink_images_downsampled = get_image_from_dir(image_folder_path, blink_image_names[:500])
+    blink_lables_downsampled = ['blink'] * 500
+
+    train_images = tf.concat([left_images, left_images_flipped_contrast, right_images,
+                              right_images_flipped_contrast, up_images, up_images_flipped_contrast,
+                               up_images_cropped_resized, blink_images_downsampled], axis=0)
+    train_labels = left_labels + left_labels_flipped_contrast + right_labels + right_labels_flipped_contrast \
+                       + up_labels + up_labels_flipped_contrast + up_labels_cropped_resized + blink_lables_downsampled
+    
+    assert(train_images.shape[0] == len(train_labels))
+    
+    test_images = get_image_from_dir(image_folder_path, test_image_names)
 
     return dict(
-        # test_labels          = test_labels,
-        # test_images            = test_images,
-        # train_labels          = train_labels,
-        # train_images            = train_images,
-        labels          = train_labels,
-        images          = train_images,
+        test_labels = test_labels,
+        test_images = test_images,
+        train_labels = train_labels,
+        train_images = train_images
     )
+
 
 def get_image_from_dir(data_folder, image_names):
     images = []
@@ -70,32 +101,24 @@ def get_image_from_dir(data_folder, image_names):
         image_path = os.path.join(data_folder, image)
         if os.path.exists(image_path):
             with Image.open(image_path) as img:
-                # old_size = img.size
-                # ratio = 100 / max(old_size)
-                # new_size = tuple([int(x*ratio) for x in old_size])
-                # img = img.resize(new_size, Image.Resampling.LANCZOS)
-                # new_img = Image.new("RGB", (100, 100))
-                # new_img.paste(img, ((100 - new_size[0])//2,
-                #     (100 - new_size[1])//2))
-                # img_array = np.array(new_img)
                 img_array = np.array(img)
                 images.append(img_array)
         else:
             print(image)
     return images
 
+
 def create_pickle(data_folder):
-    with open(f'{data_folder}/data.p', 'wb') as pickle_file:
+    with open(f'{data_folder}/data_augmented.p', 'wb') as pickle_file:
         pickle.dump(load_data(data_folder), pickle_file)
     print(f'Data has been dumped into {data_folder}/data.p!')
 
+
 def unpickle(file):
 	"""
-	CIFAR data contains the files data_batch_1, data_batch_2, ..., 
-	as well as test_batch. We have combined all train batches into one
-	batch for you. Each of these files is a Python "pickled" 
-	object produced with cPickle. The code below will open up a 
-	"pickled" object (each file) and return a dictionary.
+	Each of these files is a Python "pickled" object produced 
+    with cPickle. The code below will open up a "pickled" object
+    (each file) and return a dictionary.
 
 	:param file: the file to unpickle
 	:return: dictionary of unpickled data
@@ -104,48 +127,53 @@ def unpickle(file):
 		dict = pickle.load(fo, encoding='bytes')
 	return dict
 
+
 def get_data(file_path):
     """
-    Given a file path and two target classes, returns an array of
-    normalized inputs (images) and an array of labels
+    Given a file path, returns an array of normalized inputs (images) 
+    and an array of labels.
     :param file_path: file path for inputs and labels
     :return: normalized NumPy array of inputs and tensor of labels, where 
-    inputs are of type np.float32 and has size (num_inputs, width, height, num_channels) and labels 
-    has size (num_examples, num_classes)
+    inputs are of type np.float32 and has size (num_inputs, width, height, num_channels)
+    and labels has size (num_examples, num_classes)
     """
     unpickled_file = unpickle(file_path)
-    # train_inputs = unpickled_file.get('train_images')
-    # train_labels = unpickled_file.get('train_labels')
-    # test_inputs = unpickled_file.get('test_images')
-    # test_labels = unpickled_file.get('test_labels')
-    inputs = unpickled_file.get('images')
-    labels = unpickled_file.get('labels')
-
-    # Shuffle and Split to training and testing
-    train_len = int(len(labels) * 0.75)
-    train_inputs = inputs[:train_len]
-    train_labels = labels[:train_len]
-    test_inputs = inputs[train_len:]
-    test_labels = labels[train_len:]
+    train_inputs = unpickled_file.get('train_images')
+    train_labels = unpickled_file.get('train_labels')
+    test_inputs = unpickled_file.get('test_images')
+    test_labels = unpickled_file.get('test_labels')
     
     def normalize_images(images):
         images = np.array(images)
         images = images / 255
-        # images = tf.reshape(images, (-1, 3, 100, 100))
-        # images = tf.transpose(images, perm=[0,2,3,1])
-        # Now in the shape (num_examples, 100, 100, 3)
         return images
     
     train_inputs = normalize_images(train_inputs)
     test_inputs = normalize_images(test_inputs)
-    print("num of train samples", len(train_inputs))
-    print("num of test sample", len(test_inputs))
 
     # Convert labels in string to ints
     # Left=0, Right=1, Up=2, Blink=3
     label_map = {"left": 0, "right": 1, "up": 2, "blink": 3}
-    train_labels = [label_map[label[0]] for label in train_labels]
-    test_labels = [label_map[label[0]] for label in test_labels]
+    train_labels = [label_map[label] for label in train_labels]
+    test_labels = [label_map[label] for label in test_labels]
+
+    def print_data_breakdown(labels):
+        left = 0
+        right = 0
+        up = 0
+        blink = 0
+        for label in labels:
+            if label == 0: left += 1
+            if label == 1: right += 1
+            if label == 2: up += 1
+            if label == 3: blink += 1
+        print("left", left, ", right", right, ", up", up, ", blink", blink)
+
+    print("num of train samples", len(train_inputs))
+    print_data_breakdown(train_labels)
+    print("num of test sample", len(test_inputs))
+    print_data_breakdown(test_labels)
+
     # Turn your labels into one-hot vectors
     train_labels = tf.one_hot(train_labels, 4)
     test_labels = tf.one_hot(test_labels, 4)
@@ -153,6 +181,6 @@ def get_data(file_path):
 
 if __name__ == '__main__':
     # make a pickle file from the dataset
-    # data_folder = 'data'
+    data_folder = 'data'
     # create_pickle(data_folder)
-    pass
+    # load_data(data_folder)
