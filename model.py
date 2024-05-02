@@ -128,24 +128,24 @@ class Model(tf.keras.Model):
         return tf.reduce_mean(tf.cast(correct_predictions, tf.float32))
     
 
-    def visualize_cnn_layer(self, img, layer_name, nrows, ncols, figsize, view_img=True):
+    def visualize_cnn_layer(self, img, nrows, ncols, figsize, view_img=True):
         '''
         Not working yet
         '''
-        img = np.array(img)
+        img = np.array(img) / 255
         fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
 
-        curr_layer = self.get_layer(layer_name).output
-        slice_model  = tf.keras.Model(inputs=self.inputs, outputs=curr_layer)
-        slice_output = slice_model.predict(img[None,:,:,:])
+        img_out = self.conv1(img[None,:,:,:])
+        # slice_model  = tf.keras.Model(inputs=self.inputs, outputs=curr_layer)
+        slice_output = self.conv2(img_out)
 
         for row in range(nrows):
             for col in range(ncols):
                 idx = row * ncols + col
                 curr_ax = axes[row, col]
-                out = slice_output[0,:,:,idx].astype(np.uint8)
+                out = np.array(slice_output[0,:,:,idx].numpy() * 255, dtype=np.uint8)
                 out = Image.fromarray(out)
-                out = out.resize(img.shape[:-1], resample=Image.BOX)
+                out = out.resize((100, 100), resample=Image.BOX)
                 curr_ax.imshow(out)
                 if view_img:
                     curr_ax.imshow(img, alpha=0.3)

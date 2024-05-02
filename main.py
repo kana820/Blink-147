@@ -8,7 +8,7 @@ from model import Model
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
-NUM_EPOCHS = 40
+NUM_EPOCHS = 25
 BATCH_SIZE = 256
 
 def train(model, train_inputs, train_labels):
@@ -74,13 +74,13 @@ def test(model, test_inputs, test_labels):
         losses.append(loss)
         test_pred = np.append(test_pred, tf.argmax(logits, 1).numpy())
 
-    test_true = tf.argmax(test_labels, 1)
-    cm = confusion_matrix(test_true, test_pred)
-    sns.heatmap(cm, annot=True,fmt='d', cmap='YlGnBu', xticklabels=['left', 'right', 'up', 'blink'], yticklabels=['left', 'right', 'up', 'blink'])
-    plt.xlabel('Prediction',fontsize=12)
-    plt.ylabel('Actual',fontsize=12)
-    plt.title('Confusion Matrix',fontsize=16)
-    plt.show()
+    # test_true = tf.argmax(test_labels, 1)
+    # cm = confusion_matrix(test_true, test_pred)
+    # sns.heatmap(cm, annot=True,fmt='d', cmap='YlGnBu', xticklabels=['left', 'right', 'up', 'blink'], yticklabels=['left', 'right', 'up', 'blink'])
+    # plt.xlabel('Prediction',fontsize=12)
+    # plt.ylabel('Actual',fontsize=12)
+    # plt.title('Confusion Matrix',fontsize=16)
+    # plt.show()
     
     accuracy = tf.reduce_mean(accuracies)
     loss = tf.reduce_mean(losses)
@@ -105,6 +105,10 @@ def main():
     for e in range(model.num_epoch):
         loss, acc = train(model, train_inputs, train_labels)
         print("Epoch", e+1, "/", model.num_epoch, ": Loss", loss.numpy() ,", Accuracy", acc.numpy())
+
+    with Image.open('data\dataset\Alecos_Markides_0001.jpg') as img:
+        model.visualize_cnn_layer(img, 6, 6, (15, 15), view_img=True)
+        plt.show()
 
     result_loss, result_acc = test(model, test_inputs, test_labels)
     print("Testing Performance (Loss): ", result_loss.numpy(), "(Accuracy)", result_acc.numpy())
