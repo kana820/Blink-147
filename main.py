@@ -1,16 +1,14 @@
 from __future__ import absolute_import
 from preprocess import get_data
-import os
 import tensorflow as tf
 import numpy as np
-import random
-import math
 import matplotlib.pyplot as plt
 from PIL import Image
-from tqdm import tqdm
 from model import Model
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
 
-NUM_EPOCHS = 35
+NUM_EPOCHS = 40
 BATCH_SIZE = 256
 
 def train(model, train_inputs, train_labels):
@@ -67,12 +65,22 @@ def test(model, test_inputs, test_labels):
 
     accuracies = []
     losses = []
+    test_pred = []
     for batch_inputs, batch_labels in dataset:
         logits = model(batch_inputs, training=False)
         loss = model.loss(logits, batch_labels)
         accuracy = model.accuracy(logits, batch_labels)
         accuracies.append(accuracy)
         losses.append(loss)
+        test_pred = np.append(test_pred, tf.argmax(logits, 1).numpy())
+
+    test_true = tf.argmax(test_labels, 1)
+    cm = confusion_matrix(test_true, test_pred)
+    sns.heatmap(cm, annot=True,fmt='d', cmap='YlGnBu', xticklabels=['left', 'right', 'up', 'blink'], yticklabels=['left', 'right', 'up', 'blink'])
+    plt.xlabel('Prediction',fontsize=12)
+    plt.ylabel('Actual',fontsize=12)
+    plt.title('Confusion Matrix',fontsize=16)
+    plt.show()
     
     accuracy = tf.reduce_mean(accuracies)
     loss = tf.reduce_mean(losses)
@@ -94,10 +102,9 @@ def main():
     train_inputs, train_labels, test_inputs, test_labels = get_data(DATA_FILE)
     input_size = train_inputs.shape
     model = Model(input_size, NUM_EPOCHS, 4)
-    pbar = tqdm(range(model.num_epoch))
     for e in range(model.num_epoch):
         loss, acc = train(model, train_inputs, train_labels)
-        pbar.set_description(f'Epoch {e+1}/{model.num_epoch}: Loss {loss}, Accuracy {acc}\n')
+        print("Epoch", e+1, "/", model.num_epoch, ": Loss", loss.numpy() ,", Accuracy", acc.numpy())
 
     result_loss, result_acc = test(model, test_inputs, test_labels)
     print("Testing Performance (Loss): ", result_loss.numpy(), "(Accuracy)", result_acc.numpy())
