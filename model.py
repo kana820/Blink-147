@@ -47,10 +47,10 @@ class Model(tf.keras.Model):
         super(Model, self).__init__()
         
         self.num_epoch = num_epoch
-        self.conv1 = tf.keras.layers.Conv2D(filters=16,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv2 = tf.keras.layers.Conv2D(filters=16,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv3 = tf.keras.layers.Conv2D(filters=16,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv4 = tf.keras.layers.Conv2D(filters=16,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv1 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv2 = tf.keras.layers.Conv2D(filters=32,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv3 = tf.keras.layers.Conv2D(filters=32,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv4 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.maxpool = tf.keras.layers.MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="SAME")
 
         # self.dense = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=int(im_size/32), padding=0, bias=True)
@@ -61,18 +61,22 @@ class Model(tf.keras.Model):
         # x = multiply([x, attention])
         # self.attentionlayer = AttentionBlock(kernel_size=kernel_size)
 
-        self.dense1_classification  = tf.keras.layers.Dense(kernel_size, activation=tf.keras.layers.LeakyReLU())
-        self.dense2_classification  = tf.keras.layers.Dense(kernel_size, activation=tf.keras.layers.LeakyReLU())
+        self.dense1_classification  = tf.keras.layers.Dense(32, activation=tf.keras.layers.LeakyReLU())
+        self.dense2_classification  = tf.keras.layers.Dense(64, activation=tf.keras.layers.LeakyReLU())
         self.dense3_classification  = tf.keras.layers.Dense(4)
 
         self.loss_list = []
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+        self.epoch_loss = []
+        self.acc_list = []
+        self.epoch_acc = []
+        self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.001)
 
 
         self.projector = ProjectorBlock(7)
         self.attn1 = AttentionBlock()
         self.attn2 = AttentionBlock()
         self.attn3 = AttentionBlock()
+        self.layer_norm = tf.keras.layers.LayerNormalization(axis=-1)
         
 
     def call(self, inputs):
@@ -90,6 +94,8 @@ class Model(tf.keras.Model):
         c2, g2 = self.attn2(self.projector(p2), p4)
         c3, g3 = self.attn3(self.projector(p3), p4)
         g = tf.concat([g1, g2, g3], axis=1)
+
+        g = self.layer_norm(g)
     
         d1 = self.dense1_classification(g)
         d2 = self.dense2_classification(d1)
@@ -97,8 +103,8 @@ class Model(tf.keras.Model):
         return d3
     
     def loss(self, logits, labels):
-        # class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
-        class_weights = tf.constant([[1, 1, 1.2, 0.5]])
+        class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
+        # class_weights = tf.constant([[1, 1, 1.2, 0.5]])
         # print(type(class_weights))
         # print(type(labels))
         # weights = tf.constant([class_weights[i] for i in labels])
@@ -111,6 +117,6 @@ class Model(tf.keras.Model):
         return tf.reduce_mean(loss)
     
     def accuracy(self, logits, labels):
-        
-        correct_predictions = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
+        x = tf.nn.softmax(logits)
+        correct_predictions = tf.equal(tf.argmax(x, 1), tf.argmax(labels, 1))
         return tf.reduce_mean(tf.cast(correct_predictions, tf.float32))

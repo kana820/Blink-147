@@ -7,21 +7,48 @@ import random
 import math
 from tqdm import tqdm
 from model import Model
+from matplotlib import pyplot as plt
 
-NUM_EPOCHS = 10
-BATCH_SIZE = 256
+NUM_EPOCHS = 50
+BATCH_SIZE = 128
+
+def filter_by_class(dataset, class_index):
+    return dataset.filter(lambda x, y: tf.argmax(y) == class_index)
 
 def train(model, train_inputs, train_labels):
+        
+        class_names = ["left", "right", "up", "blink"] 
+
         indices = tf.range(start=0, limit=len(train_labels))
         shuffled_indices = tf.random.shuffle(indices)
         train_inputs = tf.gather(train_inputs, shuffled_indices)
         train_labels = tf.gather(train_labels, shuffled_indices)
+
+        train_inputs = tf.image.random_flip_left_right(train_inputs)
     
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
+
+        # class_datasets = [filter_by_class(combined_data_set, i) for i in range(len(class_names))]
+
+        # for i, class_dataset in enumerate(class_datasets):
+        #     count = 0
+        #     for _, _ in class_dataset:
+        #         count += 1
+        #     print(f"Number of examples in class {class_names[i]}:", count)
+
+        # left_class = class_datasets[0]
+        # right_class = class_datasets[1]
+        # up_class = class_datasets[2]
+        # blink_class = class_datasets[3]
+
+        # all_data_weighted = tf.data.experimental.sample_from_datasets(
+        #     [left_class, right_class, up_class, blink_class], weights=[.25, .25, .25, .25])
+
         set_of_batches = combined_data_set.batch(BATCH_SIZE)
 
         # batches_accuracies = []
         # batches_losses = []
+        epoch_loss = []
         accuracies = []
         count = 1
 
@@ -30,18 +57,22 @@ def train(model, train_inputs, train_labels):
                 logits = model(batch_inputs, training=True)
                 loss = model.loss(logits, batch_labels)
                 model.loss_list.append(loss)
+                epoch_loss.append(loss)
 
             grads = tape.gradient(loss, model.trainable_variables)
             model.optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
-            accuracy = model.accuracy(logits ,batch_labels)
+            accuracy = model.accuracy(logits, batch_labels)
+            model.acc_list.append(accuracy)
             accuracies.append(accuracy)
             # batches_losses.append(loss)
             print("batch", count, "loss", loss.numpy(), "acc", accuracy.numpy())
             count += 1
         
-        mean_loss = tf.math.reduce_mean(model.loss_list)
+        mean_loss = tf.math.reduce_mean(epoch_loss)
+        model.epoch_loss.append(mean_loss)
         mean_accuracy = tf.math.reduce_mean(accuracies)
+        model.epoch_acc.append(mean_accuracy)
         return mean_loss, mean_accuracy
 
 def test(model, test_inputs, test_labels):
@@ -63,7 +94,7 @@ def test(model, test_inputs, test_labels):
     losses = []
     for batch_inputs, batch_labels in dataset:
         logits = model(batch_inputs, training=False)
-        loss = model.loss(logits, test_labels)
+        loss = model.loss(logits, batch_labels)
         accuracy = model.accuracy(logits, batch_labels)
         accuracies.append(accuracy)
         losses.append(loss)
@@ -72,6 +103,26 @@ def test(model, test_inputs, test_labels):
     loss = tf.reduce_mean(losses)
 
     return loss, accuracy
+
+def visualize_loss(model): 
+    x = [i/12 for i in range(len(model.loss_list))]
+    x_epoch = [i+1 for i in range(len(model.epoch_loss))]
+    plt.plot(x, model.loss_list, color="lightblue") # all loss
+    plt.plot(x_epoch, model.epoch_loss, color="b") # epoch loss
+    plt.title('Loss (Attention-Based Model with Weighted Loss)')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.show() 
+
+def visualize_acc(model): 
+    x = [i/12 for i in range(len(model.acc_list))]
+    x_epoch = [i+1 for i in range(len(model.epoch_acc))]
+    plt.plot(x, model.acc_list, color="lightcoral") # all losses
+    plt.plot(x_epoch, model.epoch_acc, color="red") # epoch loss
+    plt.title('Accuracy (Attention-Based Model with Weighted Loss)')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.show() 
 
 def main():
     '''
@@ -87,7 +138,7 @@ def main():
 
     train_inputs, train_labels, test_inputs, test_labels = get_data(DATA_FILE)
     input_size = train_inputs.shape
-    model = Model(input_size, NUM_EPOCHS, 16)
+    model = Model(input_size, NUM_EPOCHS, 4)
     pbar = tqdm(range(model.num_epoch))
     for e in range(model.num_epoch):
         loss, acc = train(model, train_inputs, train_labels)
@@ -95,6 +146,8 @@ def main():
 
     result_loss, result_acc = test(model, test_inputs, test_labels)
     print("Testing Performance (Loss): ", result_loss.numpy(), "(Accuracy)", result_acc.numpy())
+    visualize_loss(model)
+    visualize_acc(model)
     return
 
 
