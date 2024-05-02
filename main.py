@@ -3,11 +3,13 @@ from preprocess import get_data
 import os
 import tensorflow as tf
 import numpy as np
+np.set_printoptions(threshold=np.inf)
 import random
 import math
 from tqdm import tqdm
 from model import Model
 from matplotlib import pyplot as plt
+from PIL import Image
 
 NUM_EPOCHS = 50
 BATCH_SIZE = 128
@@ -15,9 +17,49 @@ BATCH_SIZE = 128
 def filter_by_class(dataset, class_index):
     return dataset.filter(lambda x, y: tf.argmax(y) == class_index)
 
-def train(model, train_inputs, train_labels):
-        
-        class_names = ["left", "right", "up", "blink"] 
+def weighted_sampling(dataset):
+    class_names = ["left", "right", "up", "blink"]
+
+    class_datasets = [filter_by_class(dataset, i) for i in range(len(class_names))]
+
+    for i, class_dataset in enumerate(class_datasets):
+        count = 0
+        for _, _ in class_dataset:
+            count += 1
+        print(f"Number of examples in class {class_names[i]}:", count)
+
+    left_class = class_datasets[0]
+    right_class = class_datasets[1]
+    up_class = class_datasets[2]
+    blink_class = class_datasets[3]
+
+    all_data_weighted = tf.data.Dataset.sample_from_datasets(
+        [left_class.repeat(900 // 222), right_class.repeat(math.ceil(900 / 245)), up_class.repeat(900 // 126), blink_class], weights=[.25, .25, .25, .25])
+    
+    all_data_weighted = all_data_weighted.shuffle(5000)
+    
+    # all_data_weighted = tf.data.Dataset.sample_from_datasets(
+    #     [left_class, right_class, up_class, blink_class], weights=[.25, .25, .25, .25], stop_on_empty_dataset=True)
+    
+    # xs = []
+    # for x in list(all_data_weighted.as_numpy_iterator()):
+    #     if x[1][0] == 1:
+    #         xs.append(0)
+    #     elif x[1][1] == 1:
+    #         xs.append(1)
+    #     elif x[1][2] == 1:
+    #         xs.append(2)
+    #     elif x[1][3] == 1:
+    #         xs.append(3)
+
+    # xs = np.array(xs)
+    # # print(xs)
+
+    # np.bincount(xs)
+
+    return all_data_weighted
+
+def train(model, train_inputs, train_labels): 
 
         indices = tf.range(start=0, limit=len(train_labels))
         shuffled_indices = tf.random.shuffle(indices)
@@ -28,23 +70,10 @@ def train(model, train_inputs, train_labels):
     
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
 
-        # class_datasets = [filter_by_class(combined_data_set, i) for i in range(len(class_names))]
-
-        # for i, class_dataset in enumerate(class_datasets):
-        #     count = 0
-        #     for _, _ in class_dataset:
-        #         count += 1
-        #     print(f"Number of examples in class {class_names[i]}:", count)
-
-        # left_class = class_datasets[0]
-        # right_class = class_datasets[1]
-        # up_class = class_datasets[2]
-        # blink_class = class_datasets[3]
-
-        # all_data_weighted = tf.data.experimental.sample_from_datasets(
-        #     [left_class, right_class, up_class, blink_class], weights=[.25, .25, .25, .25])
+        combined_data_set = weighted_sampling(combined_data_set)
 
         set_of_batches = combined_data_set.batch(BATCH_SIZE)
+        # set_of_batches = all_data_weighted.batch(BATCH_SIZE)
 
         # batches_accuracies = []
         # batches_losses = []
@@ -105,7 +134,8 @@ def test(model, test_inputs, test_labels):
     return loss, accuracy
 
 def visualize_loss(model): 
-    x = [i/12 for i in range(len(model.loss_list))]
+    ratio = len(model.loss_list)/len(model.epoch_loss)
+    x = [i/ratio for i in range(len(model.loss_list))]
     x_epoch = [i+1 for i in range(len(model.epoch_loss))]
     plt.plot(x, model.loss_list, color="lightblue") # all loss
     plt.plot(x_epoch, model.epoch_loss, color="b") # epoch loss
@@ -115,7 +145,8 @@ def visualize_loss(model):
     plt.show() 
 
 def visualize_acc(model): 
-    x = [i/12 for i in range(len(model.acc_list))]
+    ratio = len(model.acc_list)/len(model.epoch_acc)
+    x = [i/ratio for i in range(len(model.acc_list))]
     x_epoch = [i+1 for i in range(len(model.epoch_acc))]
     plt.plot(x, model.acc_list, color="lightcoral") # all losses
     plt.plot(x_epoch, model.epoch_acc, color="red") # epoch loss
@@ -123,6 +154,45 @@ def visualize_acc(model):
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.show() 
+
+# def visualize_feature_maps(model, layer_name, input_image):
+#     intermediate_layer_model = tf.keras.Model(inputs=model.inputs,
+#                                                outputs=model.get_layer(layer_name).output)
+#     intermediate_output = intermediate_layer_model.predict(input_image)
+    
+#     n_filters = intermediate_output.shape[3]
+#     n_columns = 8
+#     n_rows = math.ceil(n_filters / n_columns)
+    
+#     plt.figure(figsize=(20, 10))
+#     for i in range(n_filters):
+#         plt.subplot(n_rows, n_columns, i+1)
+#         plt.imshow(intermediate_output[0, :, :, i], cmap='viridis')
+#         plt.axis('off')
+#     plt.suptitle(layer_name + ' Feature Maps')
+#     plt.show()
+
+def visualize_vgg_layer(img, model, layer_name, nrows, ncols, figsize, view_img=True):
+    # img = img.resize((224,224))
+    img = np.array(img)
+    fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+
+    curr_layer = model.get_layer(layer_name).output
+    slice_model  = tf.keras.Model(inputs=model.inputs, outputs=curr_layer)
+    slice_output = slice_model.predict(img[None,:,:,:])
+
+    for row in range(nrows):
+        for col in range(ncols):
+            idx = row * ncols + col
+            curr_ax = axes[row, col]
+            out = slice_output[0,:,:,idx].astype(np.uint8)
+            out = Image.fromarray(out)
+            out = out.resize(img.shape[:-1], resample=Image.BOX)
+            curr_ax.imshow(out)
+            if view_img:
+                curr_ax.imshow(img, alpha=0.3)
+
+    return fig, axes
 
 def main():
     '''
@@ -139,15 +209,27 @@ def main():
     train_inputs, train_labels, test_inputs, test_labels = get_data(DATA_FILE)
     input_size = train_inputs.shape
     model = Model(input_size, NUM_EPOCHS, 4)
+    
     pbar = tqdm(range(model.num_epoch))
     for e in range(model.num_epoch):
         loss, acc = train(model, train_inputs, train_labels)
         pbar.set_description(f'Epoch {e+1}/{model.num_epoch}: Loss {loss}, Accuracy {acc}\n')
 
+    model.model().summary()
     result_loss, result_acc = test(model, test_inputs, test_labels)
     print("Testing Performance (Loss): ", result_loss.numpy(), "(Accuracy)", result_acc.numpy())
     visualize_loss(model)
     visualize_acc(model)
+
+    img_index = 0  
+    input_image = np.expand_dims(train_inputs[img_index], axis=0)  # Assuming you're using train_inputs
+    # visualize_feature_maps(model, 'conv2d', input_image)
+    # visualize_feature_maps(model, 'conv2d_1', input_image)
+    # visualize_feature_maps(model, 'conv2d_2', input_image)
+    # visualize_feature_maps(model, 'conv2d_3', input_image)
+    # visualize_vgg_layer(input_image, model, 'conv2d', 2, 2, (15,15))
+    
+
     return
 
 

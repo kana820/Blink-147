@@ -12,7 +12,14 @@ class AttentionBlock(tf.keras.layers.Layer):
         self.op = tf.keras.layers.Conv2D(filters=1, kernel_size=1, padding='valid', use_bias=False)
 
     def call(self, l, g):
-        N, W, H, C = tf.shape(l)
+        # N, W, H, C = tf.shape(l)
+
+        N, W, H, C = tf.split(tf.shape(l), num_or_size_splits=4)
+        N = tf.squeeze(N, axis=0)
+        W = tf.squeeze(W, axis=0)
+        H = tf.squeeze(H, axis=0)
+        C = tf.squeeze(C, axis=0)
+
         c = self.op(tf.concat([l, g], axis=-1))  # batch_sizexWxHx1
         c = tf.squeeze(c, axis=-1)
 
@@ -47,7 +54,8 @@ class Model(tf.keras.Model):
         super(Model, self).__init__()
         
         self.num_epoch = num_epoch
-        self.conv1 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+
+        self.conv1 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(), input_shape=(100,100,3))
         self.conv2 = tf.keras.layers.Conv2D(filters=32,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.conv3 = tf.keras.layers.Conv2D(filters=32,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.conv4 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
@@ -103,16 +111,16 @@ class Model(tf.keras.Model):
         return d3
     
     def loss(self, logits, labels):
-        class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
+        # class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
         # class_weights = tf.constant([[1, 1, 1.2, 0.5]])
         # print(type(class_weights))
         # print(type(labels))
         # weights = tf.constant([class_weights[i] for i in labels])
-        weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
+        # weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
 
-        # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
 
-        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
+        # loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
         # weighted_loss = loss * weights
         return tf.reduce_mean(loss)
     
@@ -120,3 +128,7 @@ class Model(tf.keras.Model):
         x = tf.nn.softmax(logits)
         correct_predictions = tf.equal(tf.argmax(x, 1), tf.argmax(labels, 1))
         return tf.reduce_mean(tf.cast(correct_predictions, tf.float32))
+    
+    def model(self):
+        x = tf.keras.layers.Input(shape=(100, 100, 3))
+        return tf.keras.Model(inputs=[x], outputs=self.call(x))
