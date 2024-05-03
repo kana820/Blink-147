@@ -10,14 +10,18 @@ from tqdm import tqdm
 from model import Model
 from matplotlib import pyplot as plt
 from PIL import Image
+from model import Model
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
 
-NUM_EPOCHS = 50
+NUM_EPOCHS = 2
 BATCH_SIZE = 128
 
 def filter_by_class(dataset, class_index):
     return dataset.filter(lambda x, y: tf.argmax(y) == class_index)
 
 def weighted_sampling(dataset):
+
     class_names = ["left", "right", "up", "blink"]
 
     class_datasets = [filter_by_class(dataset, i) for i in range(len(class_names))]
@@ -70,16 +74,20 @@ def train(model, train_inputs, train_labels):
     
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
 
-        combined_data_set = weighted_sampling(combined_data_set)
+        # combined_data_set = weighted_sampling(combined_data_set)
 
         set_of_batches = combined_data_set.batch(BATCH_SIZE)
-        # set_of_batches = all_data_weighted.batch(BATCH_SIZE)
 
-        # batches_accuracies = []
-        # batches_losses = []
         epoch_loss = []
         accuracies = []
         count = 1
+
+        # image_10_array = train_inputs[10].numpy() * 255
+        # image_10_array = np.array(image_10_array, dtype=np.uint8)
+        # image_10 = Image.fromarray(image_10_array)
+        # plt.imshow(image_10)
+        # plt.title('original')
+        # plt.show()
 
         for batch_inputs, batch_labels in set_of_batches:
             with tf.GradientTape() as tape:
@@ -121,15 +129,25 @@ def test(model, test_inputs, test_labels):
 
     accuracies = []
     losses = []
+    test_pred = []
     for batch_inputs, batch_labels in dataset:
         logits = model(batch_inputs, training=False)
         loss = model.loss(logits, batch_labels)
         accuracy = model.accuracy(logits, batch_labels)
         accuracies.append(accuracy)
         losses.append(loss)
+        test_pred = np.append(test_pred, tf.argmax(logits, 1).numpy())
     
     accuracy = tf.reduce_mean(accuracies)
     loss = tf.reduce_mean(losses)
+
+    test_true = tf.argmax(test_labels, 1)
+    cm = confusion_matrix(test_true, test_pred)
+    sns.heatmap(cm, annot=True,fmt='d', cmap='YlGnBu', xticklabels=['left', 'right', 'up', 'blink'], yticklabels=['left', 'right', 'up', 'blink'])
+    plt.xlabel('Prediction',fontsize=12)
+    plt.ylabel('Actual',fontsize=12)
+    plt.title('Confusion Matrix',fontsize=16)
+    plt.show()
 
     return loss, accuracy
 
@@ -155,45 +173,6 @@ def visualize_acc(model):
     plt.ylabel('Accuracy')
     plt.show() 
 
-# def visualize_feature_maps(model, layer_name, input_image):
-#     intermediate_layer_model = tf.keras.Model(inputs=model.inputs,
-#                                                outputs=model.get_layer(layer_name).output)
-#     intermediate_output = intermediate_layer_model.predict(input_image)
-    
-#     n_filters = intermediate_output.shape[3]
-#     n_columns = 8
-#     n_rows = math.ceil(n_filters / n_columns)
-    
-#     plt.figure(figsize=(20, 10))
-#     for i in range(n_filters):
-#         plt.subplot(n_rows, n_columns, i+1)
-#         plt.imshow(intermediate_output[0, :, :, i], cmap='viridis')
-#         plt.axis('off')
-#     plt.suptitle(layer_name + ' Feature Maps')
-#     plt.show()
-
-def visualize_vgg_layer(img, model, layer_name, nrows, ncols, figsize, view_img=True):
-    # img = img.resize((224,224))
-    img = np.array(img)
-    fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
-
-    curr_layer = model.get_layer(layer_name).output
-    slice_model  = tf.keras.Model(inputs=model.inputs, outputs=curr_layer)
-    slice_output = slice_model.predict(img[None,:,:,:])
-
-    for row in range(nrows):
-        for col in range(ncols):
-            idx = row * ncols + col
-            curr_ax = axes[row, col]
-            out = slice_output[0,:,:,idx].astype(np.uint8)
-            out = Image.fromarray(out)
-            out = out.resize(img.shape[:-1], resample=Image.BOX)
-            curr_ax.imshow(out)
-            if view_img:
-                curr_ax.imshow(img, alpha=0.3)
-
-    return fig, axes
-
 def main():
     '''
     Read in the dataset, initialize your model, and train and 
@@ -214,21 +193,18 @@ def main():
     for e in range(model.num_epoch):
         loss, acc = train(model, train_inputs, train_labels)
         pbar.set_description(f'Epoch {e+1}/{model.num_epoch}: Loss {loss}, Accuracy {acc}\n')
+    
+    with Image.open('data/train_images/Alecos_Markides_0001.jpg') as img:
+        model.visualize_cnn_layer(img, 4, 4, (15, 15), view_img=True)
+        plt.show()
+        model.visualize_attention(img)
 
     model.model().summary()
     result_loss, result_acc = test(model, test_inputs, test_labels)
     print("Testing Performance (Loss): ", result_loss.numpy(), "(Accuracy)", result_acc.numpy())
     visualize_loss(model)
-    visualize_acc(model)
+    visualize_acc(model) 
 
-    img_index = 0  
-    input_image = np.expand_dims(train_inputs[img_index], axis=0)  # Assuming you're using train_inputs
-    # visualize_feature_maps(model, 'conv2d', input_image)
-    # visualize_feature_maps(model, 'conv2d_1', input_image)
-    # visualize_feature_maps(model, 'conv2d_2', input_image)
-    # visualize_feature_maps(model, 'conv2d_3', input_image)
-    # visualize_vgg_layer(input_image, model, 'conv2d', 2, 2, (15,15))
-    
 
     return
 

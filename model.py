@@ -4,6 +4,8 @@ from tensorflow import keras
 import numpy as np
 import random
 import math
+from matplotlib import pyplot as plt
+from PIL import Image
 
 class AttentionBlock(tf.keras.layers.Layer):
     def __init__(self, normalize_attn=True):
@@ -56,20 +58,16 @@ class Model(tf.keras.Model):
         self.num_epoch = num_epoch
 
         self.conv1 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(), input_shape=(100,100,3))
-        self.conv2 = tf.keras.layers.Conv2D(filters=32,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv3 = tf.keras.layers.Conv2D(filters=32,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv2 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv3 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.conv4 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.maxpool = tf.keras.layers.MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="SAME")
 
         # self.dense = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=int(im_size/32), padding=0, bias=True)
 
         # self.flatten = tf.keras.layers.Flatten()
-        # self.attention = tf.keras.layers.Conv2D(1, (1, 1), activation="sigmoid")
-        # Conv2D(1, (1, 1), activation='sigmoid')(x)
-        # x = multiply([x, attention])
-        # self.attentionlayer = AttentionBlock(kernel_size=kernel_size)
 
-        self.dense1_classification  = tf.keras.layers.Dense(32, activation=tf.keras.layers.LeakyReLU())
+        self.dense1_classification  = tf.keras.layers.Dense(64, activation=tf.keras.layers.LeakyReLU())
         self.dense2_classification  = tf.keras.layers.Dense(64, activation=tf.keras.layers.LeakyReLU())
         self.dense3_classification  = tf.keras.layers.Dense(4)
 
@@ -79,23 +77,40 @@ class Model(tf.keras.Model):
         self.epoch_acc = []
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.001)
 
+        # self.dropout_rate = 0.15
+        # self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
+
 
         self.projector = ProjectorBlock(7)
+        # self.projector1 = ProjectorBlock(25)
+        # self.projector2 = ProjectorBlock(7)
+        # self.projector3 = ProjectorBlock(4)
         self.attn1 = AttentionBlock()
         self.attn2 = AttentionBlock()
         self.attn3 = AttentionBlock()
         self.layer_norm = tf.keras.layers.LayerNormalization(axis=-1)
         
 
-    def call(self, inputs):
+    def call(self, inputs, training: bool):
         conv1 = self.conv1(inputs)
         p1 = self.maxpool(conv1)
+        # if training: p1 = self.dropout(p1)
+        # else: p1 = p1 * (1 - self.dropout_rate)
+
         conv2 = self.conv2(p1)
         p2 = self.maxpool(conv2)
+        # if training: p2 = self.dropout(p2)
+        # else: p2 = p2 * (1 - self.dropout_rate)
+        # print(p2.shape) # (256, 7, 7, 64)
         conv3 = self.conv3(p2)
         p3 = self.maxpool(conv3)
+        # if training: p3 = self.dropout(p3)
+        # else: p3 = p3 * (1 - self.dropout_rate)
+        # print(p3.shape)
         conv4 = self.conv4(p3)
         p4 = self.maxpool(conv4)
+        # if training: p4 = self.dropout(p4)
+        # else: p4 = p4 * (1 - self.dropout_rate)
         # flatten = self.flatten(p4)
 
         c1, g1 = self.attn1(self.projector(p1), p4)
@@ -111,16 +126,14 @@ class Model(tf.keras.Model):
         return d3
     
     def loss(self, logits, labels):
-        # class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
-        # class_weights = tf.constant([[1, 1, 1.2, 0.5]])
-        # print(type(class_weights))
-        # print(type(labels))
+        class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
+
         # weights = tf.constant([class_weights[i] for i in labels])
-        # weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
+        weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
 
-        loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
+        # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
 
-        # loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
+        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
         # weighted_loss = loss * weights
         return tf.reduce_mean(loss)
     
@@ -131,4 +144,94 @@ class Model(tf.keras.Model):
     
     def model(self):
         x = tf.keras.layers.Input(shape=(100, 100, 3))
-        return tf.keras.Model(inputs=[x], outputs=self.call(x))
+        return tf.keras.Model(inputs=[x], outputs=self.call(x, training=True))
+    
+    def visualize_cnn_layer(self, img, nrows, ncols, figsize, view_img=True):
+        '''
+        Not working yet
+        '''
+        img = np.array(img) / 255
+        fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+
+        img_out = self.conv1(img[None,:,:,:])
+        # slice_model  = tf.keras.Model(inputs=self.inputs, outputs=curr_layer)
+        slice_output = self.conv2(img_out)
+
+        for row in range(nrows):
+            for col in range(ncols):
+                idx = row * ncols + col
+                curr_ax = axes[row, col]
+                out = np.array(slice_output[0,:,:,idx].numpy() * 255, dtype=np.uint8)
+                out = Image.fromarray(out)
+                out = out.resize((100, 100), resample=Image.BOX)
+                curr_ax.imshow(out)
+                if view_img:
+                    curr_ax.imshow(img, alpha=0.3)
+
+        return fig, axes
+    
+    def visualize_attention(self, img):
+        # image
+        img = np.array(img)  / 255
+
+        conv1_out = self.maxpool(self.conv1(img[None,:,:,:]))
+        conv2_out = self.maxpool(self.conv2(conv1_out))
+        conv3_out = self.maxpool(self.conv3(conv2_out))
+        conv4_out = self.maxpool(self.conv4(conv3_out))
+
+        print(conv4_out.shape)
+
+        c1, g1 = self.attn1(self.projector(conv1_out), conv4_out)
+        c2, g2 = self.attn1(self.projector(conv2_out), conv4_out)
+        c3, g3 = self.attn1(self.projector(conv3_out), conv4_out)
+
+        out1 = np.squeeze(np.array(c1.numpy() * 255).astype(np.uint8))
+        out1 = Image.fromarray(out1)
+        out1 = out1.resize((100, 100), resample=Image.BOX)
+
+        out2 = np.squeeze(np.array(c2.numpy() * 255).astype(np.uint8))
+        out2 = Image.fromarray(out2)
+        out2 = out2.resize((100, 100), resample=Image.BOX)
+
+        out3 = np.squeeze(np.array(c3.numpy() * 255).astype(np.uint8))
+        out3 = Image.fromarray(out3)
+        out3 = out2.resize((100, 100), resample=Image.BOX)
+
+        # print("c2", c2.shape)
+        # N, C, W, H = c2.shape
+        # a = tf.nn.softmax(tf.reshape(c2, (N, C, -1)), axis=2)
+        # a = tf.reshape(a, (N, C, W, H))
+
+        # a = tf.image.resize(a, size=(W*2, H*2), method=tf.image.ResizeMethod.BILINEAR)
+
+        # attn = tf.image.grayscale_to_rgb(tf.image.convert_image_dtype(a, tf.uint8))
+
+        # # vis = 0.6 * img + 0.4 * attn
+        # vis = img + attn
+
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 10))
+        ax1.imshow(out1, cmap="gist_gray")
+        ax1.imshow(img, alpha=0.7)
+        ax2.imshow(out2)
+        ax2.imshow(img, alpha=0.7)
+        ax3.imshow(out3)
+        ax3.imshow(img, alpha=0.7)
+        # ax1.set_title('Input Images')
+        plt.show()
+
+
+
+            # g = tf.concat([g1, g2, g3], axis=1)
+            # print(g.shape)
+            # # attn = tf.image.grayscale_to_rgb(tf.image.convert_image_dtype(g, tf.uint8))
+
+            # vis = 0.6 * img + 0.4 * g
+
+            # # out = np.array(slice_output[0,:,:,idx].numpy() * 255, dtype=np.uint8)
+            # # out = Image.fromarray(out)
+            # # out = out.resize((100, 100), resample=Image.BOX)
+
+            # fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 10))
+            # ax1.imshow(vis)
+            # ax1.set_title('Input Images')
+            # plt.show()
