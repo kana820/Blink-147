@@ -14,7 +14,7 @@ from model import Model
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
-NUM_EPOCHS = 2
+NUM_EPOCHS = 50
 BATCH_SIZE = 128
 
 def filter_by_class(dataset, class_index):
@@ -74,7 +74,7 @@ def train(model, train_inputs, train_labels):
     
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
 
-        # combined_data_set = weighted_sampling(combined_data_set)
+        combined_data_set = weighted_sampling(combined_data_set)
 
         set_of_batches = combined_data_set.batch(BATCH_SIZE)
 

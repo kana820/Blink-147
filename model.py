@@ -57,8 +57,8 @@ class Model(tf.keras.Model):
         
         self.num_epoch = num_epoch
 
-        self.conv1 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(), input_shape=(100,100,3))
-        self.conv2 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv1 = tf.keras.layers.Conv2D(filters=64, kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(), input_shape=(100,100,3))
+        self.conv2 = tf.keras.layers.Conv2D(filters=64, kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.conv3 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.conv4 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.maxpool = tf.keras.layers.MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="SAME")
@@ -68,7 +68,7 @@ class Model(tf.keras.Model):
         # self.flatten = tf.keras.layers.Flatten()
 
         self.dense1_classification  = tf.keras.layers.Dense(64, activation=tf.keras.layers.LeakyReLU())
-        self.dense2_classification  = tf.keras.layers.Dense(64, activation=tf.keras.layers.LeakyReLU())
+        self.dense2_classification  = tf.keras.layers.Dense(32, activation=tf.keras.layers.LeakyReLU())
         self.dense3_classification  = tf.keras.layers.Dense(4)
 
         self.loss_list = []
@@ -81,10 +81,10 @@ class Model(tf.keras.Model):
         # self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
 
 
-        self.projector = ProjectorBlock(7)
-        # self.projector1 = ProjectorBlock(25)
-        # self.projector2 = ProjectorBlock(7)
-        # self.projector3 = ProjectorBlock(4)
+        # self.projector = ProjectorBlock(7)
+        self.projector1 = ProjectorBlock(50)
+        self.projector2 = ProjectorBlock(25)
+        self.projector3 = ProjectorBlock(13)
         self.attn1 = AttentionBlock()
         self.attn2 = AttentionBlock()
         self.attn3 = AttentionBlock()
@@ -113,9 +113,9 @@ class Model(tf.keras.Model):
         # else: p4 = p4 * (1 - self.dropout_rate)
         # flatten = self.flatten(p4)
 
-        c1, g1 = self.attn1(self.projector(p1), p4)
-        c2, g2 = self.attn2(self.projector(p2), p4)
-        c3, g3 = self.attn3(self.projector(p3), p4)
+        c1, g1 = self.attn1(p1, self.projector1(p4))
+        c2, g2 = self.attn2(p2, self.projector2(p4))
+        c3, g3 = self.attn3(p3, self.projector3(p4))
         g = tf.concat([g1, g2, g3], axis=1)
 
         g = self.layer_norm(g)
@@ -126,14 +126,14 @@ class Model(tf.keras.Model):
         return d3
     
     def loss(self, logits, labels):
-        class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
+        # class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
 
         # weights = tf.constant([class_weights[i] for i in labels])
-        weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
+        # weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
 
-        # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
 
-        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
+        # loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
         # weighted_loss = loss * weights
         return tf.reduce_mean(loss)
     
@@ -181,9 +181,9 @@ class Model(tf.keras.Model):
 
         print(conv4_out.shape)
 
-        c1, g1 = self.attn1(self.projector(conv1_out), conv4_out)
-        c2, g2 = self.attn1(self.projector(conv2_out), conv4_out)
-        c3, g3 = self.attn1(self.projector(conv3_out), conv4_out)
+        c1, g1 = self.attn1(conv1_out, self.projector1(conv4_out))
+        c2, g2 = self.attn1(conv2_out, self.projector2(conv4_out))
+        c3, g3 = self.attn1(conv3_out, self.projector3(conv4_out))
 
         out1 = np.squeeze(np.array(c1.numpy() * 255).astype(np.uint8))
         out1 = Image.fromarray(out1)
@@ -197,41 +197,15 @@ class Model(tf.keras.Model):
         out3 = Image.fromarray(out3)
         out3 = out2.resize((100, 100), resample=Image.BOX)
 
-        # print("c2", c2.shape)
-        # N, C, W, H = c2.shape
-        # a = tf.nn.softmax(tf.reshape(c2, (N, C, -1)), axis=2)
-        # a = tf.reshape(a, (N, C, W, H))
+        outs = [out1, out2, out3]
 
-        # a = tf.image.resize(a, size=(W*2, H*2), method=tf.image.ResizeMethod.BILINEAR)
-
-        # attn = tf.image.grayscale_to_rgb(tf.image.convert_image_dtype(a, tf.uint8))
-
-        # # vis = 0.6 * img + 0.4 * attn
-        # vis = img + attn
-
-        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 10))
-        ax1.imshow(out1, cmap="gist_gray")
-        ax1.imshow(img, alpha=0.7)
-        ax2.imshow(out2)
-        ax2.imshow(img, alpha=0.7)
-        ax3.imshow(out3)
-        ax3.imshow(img, alpha=0.7)
-        # ax1.set_title('Input Images')
+        fig, axs = plt.subplots(1, 3)
+        for col in range(3):
+            ax = axs[col]
+            curr_plot = outs[col]
+            pcm = ax.imshow(curr_plot)
+            ax.imshow(img, alpha=0.85)
+            plot_title = "Attention Map " + str(col)
+            ax.set_title(plot_title)
+        fig.colorbar(pcm, ax=axs[:], shrink=0.4)
         plt.show()
-
-
-
-            # g = tf.concat([g1, g2, g3], axis=1)
-            # print(g.shape)
-            # # attn = tf.image.grayscale_to_rgb(tf.image.convert_image_dtype(g, tf.uint8))
-
-            # vis = 0.6 * img + 0.4 * g
-
-            # # out = np.array(slice_output[0,:,:,idx].numpy() * 255, dtype=np.uint8)
-            # # out = Image.fromarray(out)
-            # # out = out.resize((100, 100), resample=Image.BOX)
-
-            # fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 10))
-            # ax1.imshow(vis)
-            # ax1.set_title('Input Images')
-            # plt.show()
