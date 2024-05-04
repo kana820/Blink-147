@@ -171,7 +171,7 @@ def visualize_acc(model):
     # plt.plot(x, model.acc_list, color="lightcoral") # all acc
     plt.plot(x_epoch, model.epoch_acc, color="red") # epoch acc
     plt.xlim([0, 40])
-    plt.ylim([0,100])
+    plt.ylim([0,1])
     plt.title('Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
