@@ -95,6 +95,7 @@ class Model(tf.keras.Model):
         conv1 = self.conv1(inputs)
         p1 = self.maxpool(conv1)
         # if training: p1 = self.dropout(p1)
+        # else: p1 = p1 * (1 - self.dropout_rate)
 
         conv2 = self.conv2(p1)
         p2 = self.maxpool(conv2)
@@ -125,13 +126,11 @@ class Model(tf.keras.Model):
     def loss(self, logits, labels):
         class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
 
-        # weights = tf.constant([class_weights[i] for i in labels])
         weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
 
         # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
 
         loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
-        # weighted_loss = loss * weights
         return tf.reduce_mean(loss)
     
     def accuracy(self, logits, labels):
@@ -151,7 +150,6 @@ class Model(tf.keras.Model):
         fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
 
         img_out = self.conv1(img[None,:,:,:])
-        # slice_model  = tf.keras.Model(inputs=self.inputs, outputs=curr_layer)
         slice_output = self.conv2(img_out)
 
         for row in range(nrows):
@@ -161,7 +159,7 @@ class Model(tf.keras.Model):
                 out = np.array(slice_output[0,:,:,idx].numpy() * 255, dtype=np.uint8)
                 out = Image.fromarray(out)
                 out = out.resize((100, 100), resample=Image.BOX)
-                curr_ax.imshow(out)
+                curr_ax.imshow(out, cmap="GnBu")
                 if view_img:
                     curr_ax.imshow(img, alpha=0.3)
 

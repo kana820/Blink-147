@@ -171,7 +171,7 @@ def visualize_acc(model):
     x_epoch = [i+1 for i in range(len(model.epoch_acc))]
     # plt.plot(x, model.acc_list, color="lightcoral") # all acc
     plt.plot(x_epoch, model.epoch_acc, color="red") # epoch acc
-    plt.xlim([0, 40])
+    plt.xlim([0, 30])
     plt.ylim([0,1])
     plt.title('Accuracy')
     plt.xlabel('Epoch')
@@ -187,6 +187,7 @@ def visualize_train_test_acc(model):
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.show() 
+
 
 def main():
     '''
