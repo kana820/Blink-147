@@ -14,7 +14,7 @@ from model import Model
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
-NUM_EPOCHS = 10
+NUM_EPOCHS = 40
 BATCH_SIZE = 128
 
 def filter_by_class(dataset, class_index):
