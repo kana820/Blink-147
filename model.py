@@ -57,10 +57,15 @@ class Model(tf.keras.Model):
         
         self.num_epoch = num_epoch
 
-        self.conv1 = tf.keras.layers.Conv2D(filters=64, kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(), input_shape=(100,100,3))
-        self.conv2 = tf.keras.layers.Conv2D(filters=64, kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv3 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv4 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv1 = tf.keras.layers.Conv2D(filters=64, kernel_size=kernel_size, padding="SAME", 
+                                            activation=tf.keras.layers.LeakyReLU(), input_shape=(100,100,3),
+                                            kernel_regularizer=tf.keras.regularizers.l1())
+        self.conv2 = tf.keras.layers.Conv2D(filters=64, kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(),
+                                            kernel_regularizer=tf.keras.regularizers.l1())
+        self.conv3 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(),
+                                            kernel_regularizer=tf.keras.regularizers.l1())
+        self.conv4 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(),
+                                            kernel_regularizer=tf.keras.regularizers.l1())
         self.maxpool = tf.keras.layers.MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="SAME")
 
         # self.dense = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=int(im_size/32), padding=0, bias=True)
@@ -126,14 +131,14 @@ class Model(tf.keras.Model):
         return d3
     
     def loss(self, logits, labels):
-        class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
+        # class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
 
         # weights = tf.constant([class_weights[i] for i in labels])
-        weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
+        # weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
 
-        # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
 
-        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
+        # loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
 
         return tf.reduce_mean(loss)
     
@@ -164,9 +169,10 @@ class Model(tf.keras.Model):
                 out = np.array(slice_output[0,:,:,idx].numpy() * 255, dtype=np.uint8)
                 out = Image.fromarray(out)
                 out = out.resize((100, 100), resample=Image.BOX)
-                curr_ax.imshow(out)
+                curr_ax.imshow(out, cmap="GnBu")
                 if view_img:
                     curr_ax.imshow(img, alpha=0.3)
+        plt.show()        
 
         return fig, axes
     

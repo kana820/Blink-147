@@ -74,7 +74,7 @@ def train(model, train_inputs, train_labels):
     
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
 
-        # combined_data_set = weighted_sampling(combined_data_set)
+        combined_data_set = weighted_sampling(combined_data_set)
 
         set_of_batches = combined_data_set.batch(BATCH_SIZE)
 
@@ -170,6 +170,8 @@ def visualize_acc(model):
     x_epoch = [i+1 for i in range(len(model.epoch_acc))]
     # plt.plot(x, model.acc_list, color="lightcoral") # all acc
     plt.plot(x_epoch, model.epoch_acc, color="red") # epoch acc
+    plt.xlim([0, 40])
+    plt.ylim([0,100])
     plt.title('Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
@@ -213,7 +215,7 @@ def main():
     
     with Image.open('data/train_images/Alecos_Markides_0001.jpg') as img:
         model.visualize_cnn_layer(img, 4, 4, (15, 15), view_img=True)
-        plt.show()
+        # plt.show()
         # model.visualize_attention(img)
 
     visualize_train_test_acc(model)
