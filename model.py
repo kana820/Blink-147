@@ -75,10 +75,11 @@ class Model(tf.keras.Model):
         self.epoch_loss = []
         self.acc_list = []
         self.epoch_acc = []
+        self.test_acc = []
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.001)
 
-        # self.dropout_rate = 0.15
-        # self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
+        self.dropout_rate = 0.10
+        self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
 
 
         # self.projector = ProjectorBlock(7)
@@ -94,24 +95,23 @@ class Model(tf.keras.Model):
     def call(self, inputs, training: bool):
         conv1 = self.conv1(inputs)
         p1 = self.maxpool(conv1)
-        # if training: p1 = self.dropout(p1)
-        # else: p1 = p1 * (1 - self.dropout_rate)
+        if training: p1 = self.dropout(p1)
+        else: p1 = p1 * (1 - self.dropout_rate)
 
         conv2 = self.conv2(p1)
         p2 = self.maxpool(conv2)
-        # if training: p2 = self.dropout(p2)
-        # else: p2 = p2 * (1 - self.dropout_rate)
-        # print(p2.shape) # (256, 7, 7, 64)
+        if training: p2 = self.dropout(p2)
+        else: p2 = p2 * (1 - self.dropout_rate)
+
         conv3 = self.conv3(p2)
         p3 = self.maxpool(conv3)
-        # if training: p3 = self.dropout(p3)
-        # else: p3 = p3 * (1 - self.dropout_rate)
-        # print(p3.shape)
+        if training: p3 = self.dropout(p3)
+        else: p3 = p3 * (1 - self.dropout_rate)
+
         conv4 = self.conv4(p3)
         p4 = self.maxpool(conv4)
-        # if training: p4 = self.dropout(p4)
-        # else: p4 = p4 * (1 - self.dropout_rate)
-        # flatten = self.flatten(p4)
+        if training: p4 = self.dropout(p4)
+        else: p4 = p4 * (1 - self.dropout_rate)
 
         c1, g1 = self.attn1(p1, self.projector1(p4))
         c2, g2 = self.attn2(p2, self.projector2(p4))
@@ -126,15 +126,15 @@ class Model(tf.keras.Model):
         return d3
     
     def loss(self, logits, labels):
-        # class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
+        class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
 
         # weights = tf.constant([class_weights[i] for i in labels])
-        # weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
+        weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
 
-        loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
+        # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
 
-        # loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
-        # weighted_loss = loss * weights
+        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
+
         return tf.reduce_mean(loss)
     
     def accuracy(self, logits, labels):

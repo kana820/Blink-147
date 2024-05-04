@@ -14,7 +14,7 @@ from model import Model
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
-NUM_EPOCHS = 50
+NUM_EPOCHS = 10
 BATCH_SIZE = 128
 
 def filter_by_class(dataset, class_index):
@@ -74,7 +74,7 @@ def train(model, train_inputs, train_labels):
     
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
 
-        combined_data_set = weighted_sampling(combined_data_set)
+        # combined_data_set = weighted_sampling(combined_data_set)
 
         set_of_batches = combined_data_set.batch(BATCH_SIZE)
 
@@ -112,7 +112,7 @@ def train(model, train_inputs, train_labels):
         model.epoch_acc.append(mean_accuracy)
         return mean_loss, mean_accuracy
 
-def test(model, test_inputs, test_labels):
+def test(model, test_inputs, test_labels, vis_cnn):
     """
     Tests the model on the test inputs and labels. You should NOT randomly 
     flip images or do any extra preprocessing.
@@ -139,15 +139,17 @@ def test(model, test_inputs, test_labels):
         test_pred = np.append(test_pred, tf.argmax(logits, 1).numpy())
     
     accuracy = tf.reduce_mean(accuracies)
+    model.test_acc.append(accuracy)
     loss = tf.reduce_mean(losses)
 
-    test_true = tf.argmax(test_labels, 1)
-    cm = confusion_matrix(test_true, test_pred)
-    sns.heatmap(cm, annot=True,fmt='d', cmap='YlGnBu', xticklabels=['left', 'right', 'up', 'blink'], yticklabels=['left', 'right', 'up', 'blink'])
-    plt.xlabel('Prediction',fontsize=12)
-    plt.ylabel('Actual',fontsize=12)
-    plt.title('Confusion Matrix',fontsize=16)
-    plt.show()
+    if vis_cnn:
+        test_true = tf.argmax(test_labels, 1)
+        cm = confusion_matrix(test_true, test_pred)
+        sns.heatmap(cm, annot=True,fmt='d', cmap='YlGnBu', xticklabels=['left', 'right', 'up', 'blink'], yticklabels=['left', 'right', 'up', 'blink'])
+        plt.xlabel('Prediction',fontsize=12)
+        plt.ylabel('Actual',fontsize=12)
+        plt.title('Confusion Matrix',fontsize=16)
+        plt.show()
 
     return loss, accuracy
 
@@ -157,21 +159,32 @@ def visualize_loss(model):
     x_epoch = [i+1 for i in range(len(model.epoch_loss))]
     plt.plot(x, model.loss_list, color="lightblue") # all loss
     plt.plot(x_epoch, model.epoch_loss, color="b") # epoch loss
-    plt.title('Loss (Attention-Based Model with Weighted Loss)')
+    plt.title('Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.show() 
 
 def visualize_acc(model): 
-    ratio = len(model.acc_list)/len(model.epoch_acc)
-    x = [i/ratio for i in range(len(model.acc_list))]
+    # ratio = len(model.acc_list)/len(model.epoch_acc)
+    # x = [i/ratio for i in range(len(model.acc_list))]
     x_epoch = [i+1 for i in range(len(model.epoch_acc))]
-    plt.plot(x, model.acc_list, color="lightcoral") # all losses
-    plt.plot(x_epoch, model.epoch_acc, color="red") # epoch loss
-    plt.title('Accuracy (Attention-Based Model with Weighted Loss)')
+    # plt.plot(x, model.acc_list, color="lightcoral") # all acc
+    plt.plot(x_epoch, model.epoch_acc, color="red") # epoch acc
+    plt.title('Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.show() 
+
+def visualize_train_test_acc(model):
+    x = [i+1 for i in range(len(model.epoch_acc))]
+    x_2 = [(i+1)*5 for i in range(len(model.test_acc))]
+    plt.plot(x, model.epoch_acc, color="red") # train acc
+    plt.plot(x_2, model.test_acc, color="b")
+    plt.title('Train v Test Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.show() 
+
 
 def main():
     '''
@@ -193,15 +206,21 @@ def main():
     for e in range(model.num_epoch):
         loss, acc = train(model, train_inputs, train_labels)
         pbar.set_description(f'Epoch {e+1}/{model.num_epoch}: Loss {loss}, Accuracy {acc}\n')
+        print(e)
+        if ((e+1) % 5==0):
+            test_loss, test_acc = test(model, test_inputs, test_labels, vis_cnn=False)
+            print("Testing Performance Epoch", e, "Loss: ", test_loss.numpy(), "Accuracy: ", test_acc.numpy())
     
     with Image.open('data/train_images/Alecos_Markides_0001.jpg') as img:
         model.visualize_cnn_layer(img, 4, 4, (15, 15), view_img=True)
         plt.show()
-        model.visualize_attention(img)
+        # model.visualize_attention(img)
+
+    visualize_train_test_acc(model)
 
     model.model().summary()
-    result_loss, result_acc = test(model, test_inputs, test_labels)
-    print("Testing Performance (Loss): ", result_loss.numpy(), "(Accuracy)", result_acc.numpy())
+    result_loss, result_acc = test(model, test_inputs, test_labels, vis_cnn=True)
+    print("Final Testing Performance (Loss): ", result_loss.numpy(), "(Accuracy)", result_acc.numpy())
     visualize_loss(model)
     visualize_acc(model) 
 

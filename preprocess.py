@@ -146,6 +146,8 @@ def get_data(file_path):
     label_map = {"left": 0, "right": 1, "up": 2, "blink": 3}
     train_labels = [label_map[label[0]] for label in train_labels]
     test_labels = [label_map[label[0]] for label in test_labels]
+    # train_labels = [label_map[label] for label in train_labels]
+    # test_labels = [label_map[label] for label in test_labels]
     # Turn your labels into one-hot vectors
     train_labels = tf.one_hot(train_labels, 4)
     test_labels = tf.one_hot(test_labels, 4)
