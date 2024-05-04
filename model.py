@@ -164,7 +164,7 @@ class Model(tf.keras.Model):
                 out = np.array(slice_output[0,:,:,idx].numpy() * 255, dtype=np.uint8)
                 out = Image.fromarray(out)
                 out = out.resize((100, 100), resample=Image.BOX)
-                curr_ax.imshow(out)
+                curr_ax.imshow(out, cmap="GnBu")
                 if view_img:
                     curr_ax.imshow(img, alpha=0.3)
 
