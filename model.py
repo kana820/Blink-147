@@ -58,16 +58,16 @@ class Model(tf.keras.Model):
         self.num_epoch = num_epoch
 
         self.conv1 = tf.keras.layers.Conv2D(filters=64, kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(), input_shape=(100,100,3))
-        self.conv2 = tf.keras.layers.Conv2D(filters=64, kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv3 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
-        self.conv4 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
+        self.conv2 = tf.keras.layers.Conv2D(filters=64, kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(), kernel_regularizer=tf.keras.regularizers.L1L2(l1=0.05, l2=0.05))
+        self.conv3 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(), kernel_regularizer=tf.keras.regularizers.L1L2(l1=0.05, l2=0.05))
+        self.conv4 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU(), kernel_regularizer=tf.keras.regularizers.L1L2(l1=0.05, l2=0.05))
         self.maxpool = tf.keras.layers.MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="SAME")
 
         # self.dense = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=int(im_size/32), padding=0, bias=True)
 
-        # self.flatten = tf.keras.layers.Flatten()
+        self.flatten = tf.keras.layers.Flatten()
 
-        self.dense1_classification  = tf.keras.layers.Dense(64, activation=tf.keras.layers.LeakyReLU())
+        self.dense1_classification  = tf.keras.layers.Dense(64, activation=tf.keras.layers.LeakyReLU(), kernel_regularizer=tf.keras.regularizers.L1L2(l1=0.1, l2=0.1))
         self.dense2_classification  = tf.keras.layers.Dense(32, activation=tf.keras.layers.LeakyReLU())
         self.dense3_classification  = tf.keras.layers.Dense(4)
 
@@ -75,13 +75,13 @@ class Model(tf.keras.Model):
         self.epoch_loss = []
         self.acc_list = []
         self.epoch_acc = []
+        self.test_acc = []
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.001)
 
-        # self.dropout_rate = 0.15
-        # self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
+        self.dropout_rate = 0.25
+        self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
 
 
-        # self.projector = ProjectorBlock(7)
         self.projector1 = ProjectorBlock(50)
         self.projector2 = ProjectorBlock(25)
         self.projector3 = ProjectorBlock(13)
@@ -95,45 +95,42 @@ class Model(tf.keras.Model):
         conv1 = self.conv1(inputs)
         p1 = self.maxpool(conv1)
         # if training: p1 = self.dropout(p1)
-        # else: p1 = p1 * (1 - self.dropout_rate)
 
         conv2 = self.conv2(p1)
         p2 = self.maxpool(conv2)
-        # if training: p2 = self.dropout(p2)
+        if training: p2 = self.dropout(p2)
         # else: p2 = p2 * (1 - self.dropout_rate)
-        # print(p2.shape) # (256, 7, 7, 64)
         conv3 = self.conv3(p2)
         p3 = self.maxpool(conv3)
-        # if training: p3 = self.dropout(p3)
+        if training: p3 = self.dropout(p3)
         # else: p3 = p3 * (1 - self.dropout_rate)
-        # print(p3.shape)
         conv4 = self.conv4(p3)
         p4 = self.maxpool(conv4)
-        # if training: p4 = self.dropout(p4)
+        if training: p4 = self.dropout(p4)
         # else: p4 = p4 * (1 - self.dropout_rate)
-        # flatten = self.flatten(p4)
 
-        c1, g1 = self.attn1(p1, self.projector1(p4))
-        c2, g2 = self.attn2(p2, self.projector2(p4))
-        c3, g3 = self.attn3(p3, self.projector3(p4))
-        g = tf.concat([g1, g2, g3], axis=1)
+        # c1, g1 = self.attn1(p1, self.projector1(p4))
+        # c2, g2 = self.attn2(p2, self.projector2(p4))
+        # c3, g3 = self.attn3(p3, self.projector3(p4))
+        # g = tf.concat([g1, g2, g3], axis=1)
 
-        g = self.layer_norm(g)
+        # g = self.layer_norm(g)
     
-        d1 = self.dense1_classification(g)
+        d1 = self.dense1_classification(self.flatten(p4))
+        if training: d1 = self.dropout(d1)
         d2 = self.dense2_classification(d1)
         d3 = self.dense3_classification(d2)
         return d3
     
     def loss(self, logits, labels):
-        # class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
+        class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
 
         # weights = tf.constant([class_weights[i] for i in labels])
-        # weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
+        weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
 
-        loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
+        # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
 
-        # loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
+        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
         # weighted_loss = loss * weights
         return tf.reduce_mean(loss)
     
