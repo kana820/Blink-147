@@ -1,5 +1,6 @@
 import numpy as np
 import pickle
+import random
 import tensorflow as tf
 import os
 from PIL import Image
@@ -11,41 +12,37 @@ def load_data(data_folder):
     that the TAs used to pre-process the Flickr 8k dataset and create the data.p file
     that is in your assignment folder.
 
-
     Feel free to ignore this, but please read over this if you want a little more clairity
     on how the images and captions were pre-processed
     '''
 
-
-    test_file_path = f'{data_folder}/test_labels.txt'
+    # test_file_path = f'{data_folder}/test_labels.txt'
     train_file_path = f'{data_folder}/train_labels.txt'
 
-
-    with open(test_file_path) as file:
-        test_examples = file.read().splitlines()
+    # with open(test_file_path) as file:
+    #     test_examples = file.read().splitlines()
        
     with open(train_file_path) as file:
         train_examples = file.read().splitlines()
    
     # map each image name to its captions
-    test_image_names_to_labels = {}
-    for test_example in test_examples:
-        test_img_name, test_label = test_example.split(',')
-        test_image_names_to_labels[test_img_name] = test_image_names_to_labels.get(test_img_name, []) + [test_label]
+    # test_image_names_to_labels = {}
+    # for test_example in test_examples:
+    #     test_img_name, test_label = test_example.split(',')
+    #     test_image_names_to_labels[test_img_name] = test_image_names_to_labels.get(test_img_name, []) + [test_label]
        
     train_image_names_to_labels = {}
     for train_example in train_examples:
         train_img_name, train_label = train_example.split(',')
         train_image_names_to_labels[train_img_name] = train_image_names_to_labels.get(train_img_name, []) + [train_label]
 
+    # test_img_fle_path = f'{data_folder}/test'
+    # train_img_file_path = f'{data_folder}/train'
+    train_img_file_path = f'{data_folder}/dataset'
 
-    test_img_fle_path = f'{data_folder}/test'
-    train_img_file_path = f'{data_folder}/train'
-
-
-    test_images = get_image_from_dir(test_img_fle_path, test_image_names_to_labels.keys())
+    # test_images = get_image_from_dir(test_img_fle_path, test_image_names_to_labels.keys())
     train_images = get_image_from_dir(train_img_file_path, train_image_names_to_labels.keys())
-
+    random.shuffle(train_images)
 
     # returns all captions for all images
     def get_all_labels(image_names, image_names_to_labels):
@@ -55,14 +52,16 @@ def load_data(data_folder):
             to_return.append(label)
         return to_return
    
-    test_labels = get_all_labels(test_image_names_to_labels.keys(), test_image_names_to_labels)
+    # test_labels = get_all_labels(test_image_names_to_labels.keys(), test_image_names_to_labels)
     train_labels = get_all_labels(train_image_names_to_labels.keys(), train_image_names_to_labels)
 
     return dict(
-        test_labels          = test_labels,
-        test_images            = test_images,
-        train_labels          = train_labels,
-        train_images            = train_images,
+        # test_labels          = test_labels,
+        # test_images            = test_images,
+        # train_labels          = train_labels,
+        # train_images            = train_images,
+        labels          = train_labels,
+        images          = train_images,
     )
 
 def get_image_from_dir(data_folder, image_names):
@@ -71,14 +70,15 @@ def get_image_from_dir(data_folder, image_names):
         image_path = os.path.join(data_folder, image)
         if os.path.exists(image_path):
             with Image.open(image_path) as img:
-                old_size = img.size
-                ratio = 100 / max(old_size)
-                new_size = tuple([int(x*ratio) for x in old_size])
-                img = img.resize(new_size, Image.Resampling.LANCZOS)
-                new_img = Image.new("RGB", (100, 100))
-                new_img.paste(img, ((100 - new_size[0])//2,
-                    (100 - new_size[1])//2))
-                img_array = np.array(new_img)
+                # old_size = img.size
+                # ratio = 100 / max(old_size)
+                # new_size = tuple([int(x*ratio) for x in old_size])
+                # img = img.resize(new_size, Image.Resampling.LANCZOS)
+                # new_img = Image.new("RGB", (100, 100))
+                # new_img.paste(img, ((100 - new_size[0])//2,
+                #     (100 - new_size[1])//2))
+                # img_array = np.array(new_img)
+                img_array = np.array(img)
                 images.append(img_array)
         else:
             print(image)
@@ -114,21 +114,30 @@ def get_data(file_path):
     has size (num_examples, num_classes)
     """
     unpickled_file = unpickle(file_path)
-    train_inputs = unpickled_file.get('train_images')
-    train_labels = unpickled_file.get('train_labels')
-    test_inputs = unpickled_file.get('test_images')
-    test_labels = unpickled_file.get('test_labels')
+    # train_inputs = unpickled_file.get('train_images')
+    # train_labels = unpickled_file.get('train_labels')
+    # test_inputs = unpickled_file.get('test_images')
+    # test_labels = unpickled_file.get('test_labels')
+    inputs = unpickled_file.get('images')
+    labels = unpickled_file.get('labels')
+
+    # Shuffle and Split to training and testing
+    train_len = int(len(labels) * 0.75)
+    train_inputs = inputs[:train_len]
+    train_labels = labels[:train_len]
+    test_inputs = inputs[train_len:]
+    test_labels = labels[train_len:]
     
-    def reshape_images(images):
+    def normalize_images(images):
         images = np.array(images)
         images = images / 255
-        images = tf.reshape(images, (-1, 3, 100, 100))
-        images = tf.transpose(images, perm=[0,2,3,1])
+        # images = tf.reshape(images, (-1, 3, 100, 100))
+        # images = tf.transpose(images, perm=[0,2,3,1])
         # Now in the shape (num_examples, 100, 100, 3)
         return images
     
-    train_inputs = reshape_images(train_inputs)
-    test_inputs = reshape_images(test_inputs)
+    train_inputs = normalize_images(train_inputs)
+    test_inputs = normalize_images(test_inputs)
     print("num of train samples", len(train_inputs))
     print("num of test sample", len(test_inputs))
 
@@ -137,6 +146,8 @@ def get_data(file_path):
     label_map = {"left": 0, "right": 1, "up": 2, "blink": 3}
     train_labels = [label_map[label[0]] for label in train_labels]
     test_labels = [label_map[label[0]] for label in test_labels]
+    # train_labels = [label_map[label] for label in train_labels]
+    # test_labels = [label_map[label] for label in test_labels]
     # Turn your labels into one-hot vectors
     train_labels = tf.one_hot(train_labels, 4)
     test_labels = tf.one_hot(test_labels, 4)
