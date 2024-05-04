@@ -70,7 +70,7 @@ def train(model, train_inputs, train_labels):
         train_inputs = tf.gather(train_inputs, shuffled_indices)
         train_labels = tf.gather(train_labels, shuffled_indices)
 
-        train_inputs = tf.image.random_flip_left_right(train_inputs)
+        # train_inputs = tf.image.random_flip_left_right(train_inputs)
     
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
 
