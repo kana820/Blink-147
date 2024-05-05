@@ -102,7 +102,7 @@ def train(model, train_inputs, train_labels):
         model.epoch_acc.append(mean_accuracy)
         return mean_loss, mean_accuracy
 
-def test(model, test_inputs, test_labels, vis_cnn):
+def test(model, test_inputs, test_labels, vis_cm):
     """
     Tests the model on the test inputs and labels. You should NOT randomly 
     flip images or do any extra preprocessing.
@@ -132,10 +132,12 @@ def test(model, test_inputs, test_labels, vis_cnn):
     model.test_acc.append(accuracy)
     loss = tf.reduce_mean(losses)
 
-    if vis_cnn:
+    if vis_cm: # Visualize results in confusion matrix
         test_true = tf.argmax(test_labels, 1)
         cm = confusion_matrix(test_true, test_pred)
-        sns.heatmap(cm, annot=True,fmt='d', cmap='YlGnBu', xticklabels=['left', 'right', 'up', 'blink'], yticklabels=['left', 'right', 'up', 'blink'])
+        sns.heatmap(cm, annot=True,fmt='d', cmap='YlGnBu', 
+                    xticklabels=['left', 'right', 'up', 'blink'], 
+                    yticklabels=['left', 'right', 'up', 'blink'])
         plt.xlabel('Prediction',fontsize=12)
         plt.ylabel('Actual',fontsize=12)
         plt.title('Confusion Matrix',fontsize=16)
@@ -194,25 +196,30 @@ def main():
     input_size = train_inputs.shape
     model = Model(input_size, NUM_EPOCHS, 4)
     
-    pbar = tqdm(range(model.num_epoch))
     for e in range(model.num_epoch):
         loss, acc = train(model, train_inputs, train_labels)
-        pbar.set_description(f'Epoch {e+1}/{model.num_epoch}: Loss {loss}, Accuracy {acc}\n')
-        print(e)
+        print("Epoch", e+1, "/", model.num_epoch, ": Loss", loss.numpy() ,", Accuracy", acc.numpy())
+
+        # For every 5 epoch, obtain the validation accuracy
         if ((e+1) % 5==0):
-            test_loss, test_acc = test(model, test_inputs, test_labels, vis_cnn=False)
+            test_loss, test_acc = test(model, test_inputs, test_labels, vis_cm=False)
             print("Testing Performance Epoch", e, "Loss: ", test_loss.numpy(), "Accuracy: ", test_acc.numpy())
     
+    # Visualize CNN (or attention) layer on a specific image
     with Image.open('data/train_images/Alecos_Markides_0001.jpg') as img:
         model.visualize_cnn_layer(img, 4, 4, (15, 15), view_img=True)
         plt.show()
         # model.visualize_attention(img)
 
+    # Plot accuracy of train vs test
     visualize_train_test_acc(model)
 
+    # Print the summary of the model
     model.model().summary()
-    result_loss, result_acc = test(model, test_inputs, test_labels, vis_cnn=True)
+    # Test the trained model at the end
+    result_loss, result_acc = test(model, test_inputs, test_labels, vis_cm=True)
     print("Final Testing Performance (Loss): ", result_loss.numpy(), "(Accuracy)", result_acc.numpy())
+    # Visualize the loss and accuracy overtime
     visualize_loss(model)
     visualize_acc(model) 
     return
