@@ -64,13 +64,11 @@ def weighted_sampling(dataset):
     return all_data_weighted
 
 def train(model, train_inputs, train_labels): 
-
+        
         indices = tf.range(start=0, limit=len(train_labels))
         shuffled_indices = tf.random.shuffle(indices)
         train_inputs = tf.gather(train_inputs, shuffled_indices)
         train_labels = tf.gather(train_labels, shuffled_indices)
-
-        # train_inputs = tf.image.random_flip_left_right(train_inputs)
     
         combined_data_set = tf.data.Dataset.from_tensor_slices((train_inputs, train_labels))
 
@@ -81,13 +79,6 @@ def train(model, train_inputs, train_labels):
         epoch_loss = []
         accuracies = []
         count = 1
-
-        # image_10_array = train_inputs[10].numpy() * 255
-        # image_10_array = np.array(image_10_array, dtype=np.uint8)
-        # image_10 = Image.fromarray(image_10_array)
-        # plt.imshow(image_10)
-        # plt.title('original')
-        # plt.show()
 
         for batch_inputs, batch_labels in set_of_batches:
             with tf.GradientTape() as tape:
@@ -102,8 +93,7 @@ def train(model, train_inputs, train_labels):
             accuracy = model.accuracy(logits, batch_labels)
             model.acc_list.append(accuracy)
             accuracies.append(accuracy)
-            # batches_losses.append(loss)
-            print("batch", count, "loss", loss.numpy(), "acc", accuracy.numpy())
+            # print("batch", count, "loss", loss.numpy(), "acc", accuracy.numpy())
             count += 1
         
         mean_loss = tf.math.reduce_mean(epoch_loss)
@@ -225,8 +215,6 @@ def main():
     print("Final Testing Performance (Loss): ", result_loss.numpy(), "(Accuracy)", result_acc.numpy())
     visualize_loss(model)
     visualize_acc(model) 
-
-
     return
 
 
