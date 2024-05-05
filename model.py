@@ -14,8 +14,6 @@ class AttentionBlock(tf.keras.layers.Layer):
         self.op = tf.keras.layers.Conv2D(filters=1, kernel_size=1, padding='valid', use_bias=False)
 
     def call(self, l, g):
-        # N, W, H, C = tf.shape(l)
-
         N, W, H, C = tf.split(tf.shape(l), num_or_size_splits=4)
         N = tf.squeeze(N, axis=0)
         W = tf.squeeze(W, axis=0)
@@ -47,7 +45,6 @@ class ProjectorBlock(tf.keras.layers.Layer):
         self.out_size = out_size
         
     def call(self, inputs):
-        # return self.op(inputs)
         return tf.image.resize(inputs, size=(self.out_size, self.out_size))
 
 
@@ -63,10 +60,6 @@ class Model(tf.keras.Model):
         self.conv4 = tf.keras.layers.Conv2D(filters=64,kernel_size=kernel_size, padding="SAME", activation=tf.keras.layers.LeakyReLU())
         self.maxpool = tf.keras.layers.MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="SAME")
 
-        # self.dense = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=int(im_size/32), padding=0, bias=True)
-
-        # self.flatten = tf.keras.layers.Flatten()
-
         self.dense1_classification  = tf.keras.layers.Dense(64, activation=tf.keras.layers.LeakyReLU())
         self.dense2_classification  = tf.keras.layers.Dense(32, activation=tf.keras.layers.LeakyReLU())
         self.dense3_classification  = tf.keras.layers.Dense(4)
@@ -81,8 +74,6 @@ class Model(tf.keras.Model):
         self.dropout_rate = 0.10
         self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
 
-
-        # self.projector = ProjectorBlock(7)
         self.projector1 = ProjectorBlock(50)
         self.projector2 = ProjectorBlock(25)
         self.projector3 = ProjectorBlock(13)
@@ -126,14 +117,14 @@ class Model(tf.keras.Model):
         return d3
     
     def loss(self, logits, labels):
+        # for cross entropy loss
+        # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
+        
+        # for weighted cross entropy loss
         class_weights = tf.constant([[6.749, 6.443, 11.781, 1.628]])
-
         # weights = tf.constant([class_weights[i] for i in labels])
         weight_per_label = tf.transpose(tf.matmul(labels, tf.transpose(class_weights)))
-
-        # loss = tf.nn.softmax_cross_entropy_with_logits(labels,logits)
-
-        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)
+        loss = weight_per_label * tf.nn.softmax_cross_entropy_with_logits(labels, logits)   
 
         return tf.reduce_mean(loss)
     
@@ -148,13 +139,12 @@ class Model(tf.keras.Model):
     
     def visualize_cnn_layer(self, img, nrows, ncols, figsize, view_img=True):
         '''
-        Not working yet
+        Visualize the outputs from the second convolution layer
         '''
         img = np.array(img) / 255
         fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
 
         img_out = self.conv1(img[None,:,:,:])
-        # slice_model  = tf.keras.Model(inputs=self.inputs, outputs=curr_layer)
         slice_output = self.conv2(img_out)
 
         for row in range(nrows):
@@ -171,7 +161,9 @@ class Model(tf.keras.Model):
         return fig, axes
     
     def visualize_attention(self, img):
-        # image
+        '''
+        Visualize the outputs from the attention layers
+        '''
         img = np.array(img)  / 255
 
         conv1_out = self.maxpool(self.conv1(img[None,:,:,:]))
