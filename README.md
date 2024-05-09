@@ -1,4 +1,4 @@
-# Blink-147
+# Blink-147: Eye-movement Classification for Eye-Based Language for Total Paralysis Patients
 ![Blink-147 Poster](https://github.com/kana820/Blink-147/assets/107338457/baddc37e-93e9-45bd-b081-62e0b42ced5f)
 
 # Dataset
