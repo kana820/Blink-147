@@ -1,5 +1,5 @@
 # Blink-147
-## Deep Learning Model for Classifying Eye Movements for Eye-Based Communication with Total Paralysis Patients
+## Deep Learning Model to Classify Eye Movements for Eye-Based Communication with Total Paralysis Patients
 ![Blink-147 Poster](https://github.com/kana820/Blink-147/assets/107338457/baddc37e-93e9-45bd-b081-62e0b42ced5f)
 
 # Dataset
