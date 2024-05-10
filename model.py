@@ -174,8 +174,8 @@ class Model(tf.keras.Model):
         print(conv4_out.shape)
 
         c1, g1 = self.attn1(conv1_out, self.projector1(conv4_out))
-        c2, g2 = self.attn1(conv2_out, self.projector2(conv4_out))
-        c3, g3 = self.attn1(conv3_out, self.projector3(conv4_out))
+        c2, g2 = self.attn2(conv2_out, self.projector2(conv4_out))
+        c3, g3 = self.attn3(conv3_out, self.projector3(conv4_out))
 
         out1 = np.squeeze(np.array(c1.numpy() * 255).astype(np.uint8))
         out1 = Image.fromarray(out1)
